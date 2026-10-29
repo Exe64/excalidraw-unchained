@@ -1,18 +1,81 @@
 # Excalidraw Unchained
 
-Fork auto-hébergé d'[Excalidraw](https://github.com/excalidraw/excalidraw) : **même éditeur, même design, mêmes fonctionnalités**, mais :
+Un tableau blanc collaboratif au style « dessiné à la main », basé sur [Excalidraw](https://github.com/excalidraw/excalidraw), que vous hébergez vous-même. Vos dessins sont stockés sur votre serveur et l'accès est réservé aux personnes qui ont un compte.
 
-- 🔐 **accès réservé aux utilisateurs authentifiés** (nom d'utilisateur + mot de passe) ;
-- 🗄️ **les dessins sont hébergés et stockés côté serveur** (SQLite), et non plus dans le navigateur : on les retrouve depuis n'importe quel appareil ;
-- 📁 **plusieurs dessins par utilisateur** (« Mes dessins » : créer, ouvrir, rechercher, renommer, dupliquer, supprimer) ;
-- 🤝 la **collaboration en direct** et les **liens de partage** passent par ce même serveur (plus de Firebase ni de serveurs excalidraw.com) et restent **chiffrés de bout en bout** ;
-- 📚 la **bibliothèque** personnelle est aussi stockée sur le serveur ;
-- 🤖 **votre assistant IA peut dessiner** : un serveur [MCP](https://modelcontextprotocol.io) intégré permet à Claude (ou tout client MCP) de lire, créer et modifier vos dessins ;
-- ✨ les fonctions IA de l'éditeur (« Texte vers diagramme », « Wireframe vers code ») utilisent **le fournisseur de votre choix** : Claude, OpenAI, Mistral, Ollama…
+Le README d'origine d'Excalidraw est conservé dans [README.upstream.md](./README.upstream.md).
 
-Le README d'origine est conservé dans [README.upstream.md](./README.upstream.md).
+## Découvrir l'application
 
-## Démarrage rapide (Docker)
+### Se connecter
+
+L'application s'ouvre sur un écran de connexion (nom d'utilisateur et mot de passe). Les comptes sont créés par l'administrateur ; l'inscription libre peut être activée si besoin. Votre session reste ouverte 30 jours. Si elle expire pendant que vous dessinez, une fenêtre de reconnexion s'affiche par-dessus le dessin, sans rien perdre. Pour vous déconnecter : menu ☰ > **Se déconnecter**.
+
+### Vos dessins, sur le serveur
+
+- **Enregistrement automatique** : chaque modification est sauvegardée sur le serveur environ une seconde après, et à la fermeture de l'onglet. Pas de bouton « Enregistrer ».
+- **Mes dessins** (menu ☰, écran d'accueil ou palette de commandes) : la liste de tous vos dessins, avec recherche, date de dernière modification, et les actions ouvrir, renommer, dupliquer, supprimer. **Nouveau dessin** en crée un vierge.
+- **Partout** : retrouvez vos dessins depuis n'importe quel appareil. Chaque dessin a sa propre adresse (`…/?drawing=…`), que vous pouvez mettre en favori.
+- **Plusieurs onglets ou appareils** : si le même dessin est modifié à deux endroits, les changements sont fusionnés au lieu de s'écraser.
+- **Images** : les images insérées sont elles aussi stockées sur le serveur.
+
+### Dessiner
+
+La barre d'outils en haut de l'écran propose (avec leur raccourci clavier) :
+
+- **Sélection** (V) et **sélection au lasso** ; **main** (H) pour déplacer la vue ;
+- **Rectangle** (R), **losange** (D), **ellipse** (O), **flèche** (A), **ligne** (L) ;
+- **Crayon** (P) pour le dessin libre, **texte** (T), **post-it** (N), **image** (insertion depuis un fichier ou le presse-papiers) ;
+- **Gomme** (E) ;
+- dans « Plus d'outils » : **cadre** (pour regrouper et présenter une zone), **intégration web** (vidéo, page…), **pointeur laser** pour présenter, **dessin vers forme**, **remplissage au pot de peinture**, **Mermaid vers Excalidraw**, et les fonctions IA (voir plus bas).
+
+Quelques gestes utiles : double-cliquer sur une forme pour y écrire un texte, relier deux formes avec une flèche (elle reste attachée quand on déplace les formes), créer un organigramme au clavier à partir d'une forme sélectionnée (Ctrl + flèches), éditer les points d'une ligne ou d'une flèche, recadrer une image.
+
+### Mettre en forme
+
+Le panneau de propriétés permet de régler, pour la sélection : couleurs du trait et du fond, style de remplissage (hachures, hachures croisées, plein, zigzag), épaisseur et style du trait (plein, tirets, pointillés), niveau de « fait main » (architecte, artiste, cartooniste), angles droits ou arrondis, opacité, pointes de flèches (dont les notations de cardinalité pour les schémas de données), flèches droites, courbes ou à angles droits, police, taille et alignement du texte.
+
+### Organiser
+
+Premier plan / arrière-plan, alignement et répartition, grouper / dégrouper, verrouiller, dupliquer, retourner, changer le type d'une forme, lier un élément à une adresse web ou à un autre élément du dessin, ajouter des éléments à votre bibliothèque. Annuler (Ctrl+Z) et rétablir (Ctrl+Y sous Windows, Ctrl+Shift+Z ailleurs) à tout moment.
+
+### Naviguer et retrouver
+
+Zoom et défilement libres, grille et magnétisme sur les autres objets, **recherche dans le dessin** (Ctrl+F), **palette de commandes** (Ctrl+/) pour accéder à tout au clavier, mode zen (sans interface), mode lecture seule, statistiques du dessin et des éléments sélectionnés.
+
+### Bibliothèque
+
+Enregistrez des formes ou groupes de formes réutilisables dans votre bibliothèque personnelle (stockée sur le serveur, donc disponible partout), ou ajoutez-y des bibliothèques du catalogue communautaire (« Parcourir les bibliothèques »).
+
+### Collaborer et partager
+
+- **Collaboration en direct** (bouton de partage en haut à droite) : démarrez une session et envoyez le lien (ou le QR code) à vos collègues. Chacun voit les curseurs, les sélections et les modifications des autres en temps réel, et peut suivre la vue d'un participant. Seuls les utilisateurs connectés à votre instance peuvent rejoindre la session, qui est chiffrée de bout en bout : le serveur ne voit pas le contenu. En fin de session, le résultat est enregistré dans votre dessin, ou dans une copie si vous aviez rejoint la session de quelqu'un d'autre.
+- **Lien de partage** : une copie en lecture du dessin, elle aussi chiffrée de bout en bout. La personne qui l'ouvre (après connexion) retrouve le dessin ajouté à ses propres dessins.
+
+### Exporter et importer
+
+- Export en **PNG** ou **SVG** (avec ou sans fond, seulement la sélection, en mode sombre, à l'échelle voulue), copie de l'image dans le presse-papiers ;
+- option pour **inclure le dessin dans l'image** exportée, afin de pouvoir la rouvrir et la modifier plus tard ;
+- enregistrement et ouverture de fichiers **`.excalidraw`** ; glisser-déposer d'un fichier ou d'une image sur le canevas.
+
+### Intelligence artificielle
+
+- **Texte vers diagramme** : décrivez un schéma en langage naturel, l'IA propose un diagramme que vous affinez en conversation avant de l'insérer, sous forme de formes modifiables.
+- **Wireframe vers code** : dessinez une maquette d'interface dans un cadre, l'IA en génère une page web fonctionnelle, affichée directement dans le dessin.
+- **Mermaid vers Excalidraw** (sans IA) : collez un diagramme Mermaid, il est converti en formes modifiables.
+
+Ces fonctions utilisent le fournisseur d'IA choisi par l'administrateur (Claude, OpenAI, Mistral, un modèle local via Ollama…), voir [Fonctions IA de l'éditeur](#fonctions-ia-de-léditeur).
+
+### Laisser votre assistant IA dessiner
+
+Connectez Claude (ou un autre assistant compatible MCP) à votre instance, puis demandez-lui simplement : _« Dessine dans Excalidraw l'architecture de mon cluster Nutanix 3 nœuds avec Prism Central »_. Il crée le dessin dans « Mes dessins » et vous donne le lien. Il peut aussi lire vos dessins existants, les compléter, déplacer ou recolorer des éléments. Si le dessin est ouvert pendant ce temps, ses modifications apparaissent en direct.
+
+Pour le connecter : menu ☰ > **Accès API (MCP)**, créez un jeton et copiez la configuration proposée (voir [Laisser Claude dessiner](#laisser-claude-dessiner-serveur-mcp)). Votre abonnement Claude suffit : aucune clé d'API n'est nécessaire.
+
+### Personnaliser
+
+Thème clair, sombre ou selon le système, couleur de fond du canevas, plus de 40 langues, préférences d'affichage. L'application peut aussi être installée comme une application de bureau ou mobile (PWA).
+
+## Installation (Docker)
 
 ```bash
 ADMIN_PASSWORD='un-mot-de-passe-solide' docker compose up -d --build
@@ -74,6 +137,8 @@ L'instance expose un serveur MCP sur `/mcp`. Chaque utilisateur crée un **jeton
 - **App Claude / claude.ai** : Paramètres > Connecteurs > _Ajouter un connecteur personnalisé_, avec l'URL `https://draw.example.com/mcp/exu_…` (le jeton est dans l'URL, ces clients ne permettant pas d'ajouter un en-tête). L'instance doit être joignable depuis Internet en HTTPS.
 - **Autres clients MCP** : transport « Streamable HTTP » sur `/mcp`, en-tête `Authorization: Bearer <jeton>`.
 
+Aucune clé d'API Anthropic n'est nécessaire : c'est l'assistant (avec votre abonnement Claude) qui appelle votre instance, le jeton `exu_…` ne sert qu'à s'authentifier auprès d'elle.
+
 Outils proposés à l'assistant : `list_drawings`, `get_drawing`, `create_drawing`, `add_to_drawing`, `update_elements`, `remove_elements`, `rename_drawing`. Claude décrit les formes dans un format simple (rectangles, ellipses, losanges, textes, flèches reliées aux formes, cadres) ou en **Mermaid** ; l'éditeur les convertit en éléments Excalidraw modifiables à l'ouverture du dessin. Si le dessin est déjà ouvert, les modifications apparaissent en quelques secondes.
 
 Exemple : _« Dessine dans Excalidraw l'architecture de mon cluster Nutanix 3 nœuds avec Prism Central »_, puis ouvrez le lien que Claude vous donne.
@@ -93,7 +158,7 @@ AI_PROVIDER=openai AI_BASE_URL=https://api.mistral.ai/v1 AI_MODEL=mistral-large-
 AI_PROVIDER=openai AI_BASE_URL=http://ollama:11434/v1 AI_MODEL=llama3.1
 ```
 
-« Wireframe vers code » nécessite un modèle qui accepte les images. Sans `AI_PROVIDER`, ces fonctions affichent un message indiquant qu'elles ne sont pas configurées.
+Contrairement au serveur MCP, ces fonctions sont appelées par votre serveur : elles nécessitent une clé d'API du fournisseur (facturée à l'usage, distincte d'un abonnement Claude), ou un modèle local. « Wireframe vers code » nécessite un modèle qui accepte les images. Sans `AI_PROVIDER`, ces fonctions affichent un message indiquant qu'elles ne sont pas configurées.
 
 ## Développement
 
