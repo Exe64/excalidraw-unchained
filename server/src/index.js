@@ -3,9 +3,15 @@ import http from "node:http";
 
 import { createApp } from "./app.js";
 import { countUsers, createUser, purgeExpiredSessions } from "./auth.js";
+import { purgeTrash } from "./drawings.js";
 import { attachCollab } from "./collab.js";
 import { config } from "./config.js";
 import { openDatabase } from "./db.js";
+import { applyPendingRestore, scheduleBackups } from "./backups.js";
+
+if (applyPendingRestore(config.dataDir)) {
+  console.log("Restored the database from a backup.");
+}
 
 const db = openDatabase(config.dataDir);
 
@@ -37,6 +43,7 @@ if (config.ai.provider) {
 
 const cleanup = () => {
   purgeExpiredSessions(db);
+  purgeTrash(db);
   if (config.roomTtlMs > 0) {
     const threshold = Date.now() - config.roomTtlMs;
     const staleRooms = db
@@ -49,6 +56,7 @@ const cleanup = () => {
   }
 };
 cleanup();
+scheduleBackups(db);
 setInterval(cleanup, 60 * 60 * 1000).unref();
 
 const app = createApp(db);

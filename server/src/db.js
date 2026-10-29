@@ -65,6 +65,53 @@ CREATE TABLE IF NOT EXISTS share_links (
   created_at INTEGER NOT NULL
 );
 
+-- previous states of drawings, for the version history
+CREATE TABLE IF NOT EXISTS drawing_versions (
+  id         TEXT PRIMARY KEY,
+  drawing_id TEXT NOT NULL REFERENCES drawings(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  elements   TEXT NOT NULL,
+  app_state  TEXT NOT NULL,
+  reason     TEXT NOT NULL,
+  created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  -- when the drawing was in this state
+  state_at   INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS drawing_versions_drawing
+  ON drawing_versions(drawing_id, created_at);
+
+-- small previews shown in the list of drawings
+CREATE TABLE IF NOT EXISTS drawing_thumbnails (
+  drawing_id TEXT PRIMARY KEY REFERENCES drawings(id) ON DELETE CASCADE,
+  mime_type  TEXT NOT NULL,
+  data       BLOB NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+-- drawings shared with other users of the instance
+CREATE TABLE IF NOT EXISTS drawing_shares (
+  drawing_id TEXT NOT NULL REFERENCES drawings(id) ON DELETE CASCADE,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role       TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (drawing_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS drawing_shares_user ON drawing_shares(user_id);
+
+CREATE TABLE IF NOT EXISTS folders (
+  id         TEXT PRIMARY KEY,
+  owner_id   TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS favorites (
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  drawing_id TEXT NOT NULL REFERENCES drawings(id) ON DELETE CASCADE,
+  PRIMARY KEY (user_id, drawing_id)
+);
+
 -- instance settings, managed by administrators
 CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,
@@ -105,6 +152,15 @@ const migrate = (db) => {
     // "active", or "pending" until an administrator approves the account
     db.exec(
       "ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active'",
+    );
+  }
+  if (!hasColumn(db, "drawings", "deleted_at")) {
+    // set when moved to the trash
+    db.exec("ALTER TABLE drawings ADD COLUMN deleted_at INTEGER");
+  }
+  if (!hasColumn(db, "drawings", "folder_id")) {
+    db.exec(
+      "ALTER TABLE drawings ADD COLUMN folder_id TEXT REFERENCES folders(id) ON DELETE SET NULL",
     );
   }
   if (!hasColumn(db, "drawings", "pending_ops")) {

@@ -25,16 +25,9 @@ import {
 } from "./auth.js";
 import { diagramToCodeHandler, getAiInfo, textToDiagramHandler } from "./ai.js";
 import { registerAdminRoutes } from "./admin.js";
+import { registerDrawingRoutes } from "./drawingRoutes.js";
 import { config } from "./config.js";
 import { transaction } from "./db.js";
-import {
-  getUserDrawing,
-  insertDrawing,
-  listUserDrawings,
-  sanitizeName,
-  toDrawing,
-  toDrawingSummary,
-} from "./drawings.js";
 import { getRegistrationMode } from "./settings.js";
 import { createMcpRouter } from "./mcp.js";
 import {
@@ -76,7 +69,12 @@ const assertId = (...ids) => {
   }
 };
 
-export const createApp = (db) => {
+/**
+ * @param opts.requestRestart called to restart the server (e.g. to restore a
+ * backup); by default the process stops and its supervisor (Docker) starts it
+ * again
+ */
+export const createApp = (db, opts = {}) => {
   const app = express();
   app.set("trust proxy", config.trustProxy);
   app.disable("x-powered-by");
@@ -255,108 +253,15 @@ export const createApp = (db) => {
   // everything below requires an authenticated user
   api.use(authenticate);
 
-  registerAdminRoutes(api, { db, HttpError, requireSession });
-
-  // drawings
-  // ---------------------------------------------------------------------------
-
-  const getOwnDrawing = (req) => getUserDrawing(db, req.user.id, req.params.id);
-
-  api.get("/drawings", (req, res) => {
-    res.json({ drawings: listUserDrawings(db, req.user.id) });
+  registerAdminRoutes(api, {
+    db,
+    HttpError,
+    requireSession,
+    requestRestart:
+      opts.requestRestart ??
+      (() => setTimeout(() => process.kill(process.pid, "SIGTERM"), 500)),
   });
-
-  api.post("/drawings", (req, res) => {
-    const { name, elements, appState } = req.body || {};
-    const row = insertDrawing(db, req.user.id, { name, elements, appState });
-    res.status(201).json({ drawing: toDrawing(row) });
-  });
-
-  api.get("/drawings/:id", (req, res) => {
-    res.json({ drawing: toDrawing(getOwnDrawing(req)) });
-  });
-
-  /** HEAD-like cheap check used to detect changes made from other tabs */
-  api.get("/drawings/:id/version", (req, res) => {
-    assertId(req.params.id);
-    const row = db
-      .prepare(
-        "SELECT version, updated_at FROM drawings WHERE id = ? AND owner_id = ?",
-      )
-      .get(req.params.id, req.user.id);
-    if (!row) {
-      throw new HttpError(404, "Dessin introuvable.");
-    }
-    res.json({ version: row.version, updatedAt: row.updated_at });
-  });
-
-  api.put("/drawings/:id", (req, res) => {
-    const { name, elements, appState, baseVersion, appliedOps } =
-      req.body || {};
-    if (!Array.isArray(elements)) {
-      throw new HttpError(400, "Contenu du dessin invalide.");
-    }
-    const result = transaction(db, () => {
-      const row = getOwnDrawing(req);
-      if (typeof baseVersion === "number" && baseVersion !== row.version) {
-        throw new HttpError(409, "Le dessin a été modifié ailleurs.", {
-          version: row.version,
-        });
-      }
-      // pending operations the editor converted into these elements
-      const applied = new Set(Array.isArray(appliedOps) ? appliedOps : []);
-      const pendingOps = JSON.parse(row.pending_ops || "[]").filter(
-        (op) => !applied.has(op.id),
-      );
-      const updated = {
-        id: row.id,
-        name: sanitizeName(name, row.name),
-        elements: JSON.stringify(elements),
-        app_state: JSON.stringify(
-          appState && typeof appState === "object" ? appState : {},
-        ),
-        pending_ops: JSON.stringify(pendingOps),
-        version: row.version + 1,
-        updated_at: Date.now(),
-      };
-      db.prepare(
-        `UPDATE drawings SET name = :name, elements = :elements,
-           app_state = :app_state, pending_ops = :pending_ops,
-           version = :version, updated_at = :updated_at
-         WHERE id = :id`,
-      ).run(updated);
-      return updated;
-    });
-    res.json({
-      version: result.version,
-      updatedAt: result.updated_at,
-      name: result.name,
-    });
-  });
-
-  api.patch("/drawings/:id", (req, res) => {
-    const row = getOwnDrawing(req);
-    const name = sanitizeName(req.body?.name, row.name);
-    db.prepare("UPDATE drawings SET name = ? WHERE id = ?").run(name, row.id);
-    res.json({ drawing: toDrawingSummary({ ...row, name }) });
-  });
-
-  api.post("/drawings/:id/duplicate", (req, res) => {
-    const row = getOwnDrawing(req);
-    const copy = insertDrawing(db, req.user.id, {
-      name: sanitizeName(req.body?.name, `${row.name} (copie)`),
-      elements: JSON.parse(row.elements),
-      appState: JSON.parse(row.app_state),
-      pendingOps: JSON.parse(row.pending_ops || "[]"),
-    });
-    res.status(201).json({ drawing: toDrawingSummary(copy) });
-  });
-
-  api.delete("/drawings/:id", (req, res) => {
-    const row = getOwnDrawing(req);
-    db.prepare("DELETE FROM drawings WHERE id = ?").run(row.id);
-    res.json({ ok: true });
-  });
+  registerDrawingRoutes(api, { db, HttpError });
 
   // AI features of the editor
   // ---------------------------------------------------------------------------
@@ -397,50 +302,6 @@ export const createApp = (db) => {
     if (!deleteApiToken(db, req.user.id, req.params.id)) {
       throw new HttpError(404, "Jeton introuvable.");
     }
-    res.json({ ok: true });
-  });
-
-  // image files of private drawings
-  // ---------------------------------------------------------------------------
-
-  api.get("/files/:id", (req, res) => {
-    assertId(req.params.id);
-    const row = db
-      .prepare("SELECT * FROM files WHERE owner_id = ? AND id = ?")
-      .get(req.user.id, req.params.id);
-    if (!row) {
-      throw new HttpError(404, "Fichier introuvable.");
-    }
-    res.json({
-      id: row.id,
-      mimeType: row.mime_type,
-      dataURL: row.data_url,
-      created: row.created_at,
-    });
-  });
-
-  api.put("/files/:id", (req, res) => {
-    assertId(req.params.id);
-    const { mimeType, dataURL, created } = req.body || {};
-    if (
-      typeof mimeType !== "string" ||
-      typeof dataURL !== "string" ||
-      !dataURL.startsWith("data:")
-    ) {
-      throw new HttpError(400, "Fichier invalide.");
-    }
-    db.prepare(
-      `INSERT INTO files (owner_id, id, mime_type, data_url, created_at)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT (owner_id, id) DO UPDATE SET
-         mime_type = excluded.mime_type, data_url = excluded.data_url`,
-    ).run(
-      req.user.id,
-      req.params.id,
-      mimeType,
-      dataURL,
-      typeof created === "number" ? created : Date.now(),
-    );
     res.json({ ok: true });
   });
 

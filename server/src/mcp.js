@@ -114,7 +114,7 @@ const buildServer = (db, user, baseUrl) => {
     {
       title: "List drawings",
       description:
-        "Lists the user's drawings, most recently edited first, with their id and URL.",
+        "Lists the user's drawings and the ones shared with them (role: owner, edit or view), most recently edited first, with their id and URL.",
       annotations: { readOnlyHint: true },
     },
     handler(() => ({
@@ -137,7 +137,7 @@ const buildServer = (db, user, baseUrl) => {
       annotations: { readOnlyHint: true },
     },
     handler(({ drawing_id }) => {
-      const row = getUserDrawing(db, user.id, drawing_id);
+      const row = getUserDrawing(db, user.id, drawing_id, "view");
       return { ...describeDrawing(row), url: drawingUrl(row.id) };
     }),
   );
@@ -180,7 +180,7 @@ const buildServer = (db, user, baseUrl) => {
     },
     handler(({ drawing_id, elements, mermaid, x, y }) =>
       withDrawing(
-        addToDrawing(db, getUserDrawing(db, user.id, drawing_id), {
+        addToDrawing(db, getUserDrawing(db, user.id, drawing_id, "edit"), {
           elements,
           mermaid,
           x,
@@ -224,8 +224,9 @@ const buildServer = (db, user, baseUrl) => {
     handler(({ drawing_id, updates }) => {
       const { row, updated, missing } = updateElements(
         db,
-        getUserDrawing(db, user.id, drawing_id),
+        getUserDrawing(db, user.id, drawing_id, "edit"),
         updates,
+        user.id,
       );
       return { ...withDrawing(row), updated, missing };
     }),
@@ -236,7 +237,7 @@ const buildServer = (db, user, baseUrl) => {
     {
       title: "Remove elements",
       description:
-        "Removes elements from a drawing (with their labels). The user can bring them back with undo in the editor only if the drawing was open.",
+        "Removes elements from a drawing (with their labels). The previous state is kept in the drawing's version history, from which the user can restore it.",
       inputSchema: {
         drawing_id: drawingIdSchema,
         element_ids: z.array(z.string()).describe("Ids of the elements"),
@@ -246,8 +247,9 @@ const buildServer = (db, user, baseUrl) => {
     handler(({ drawing_id, element_ids }) => {
       const { row, removed } = removeElements(
         db,
-        getUserDrawing(db, user.id, drawing_id),
+        getUserDrawing(db, user.id, drawing_id, "edit"),
         element_ids,
+        user.id,
       );
       return { ...withDrawing(row), removed };
     }),
@@ -264,7 +266,11 @@ const buildServer = (db, user, baseUrl) => {
     },
     handler(({ drawing_id, name }) =>
       withDrawing(
-        renameDrawing(db, getUserDrawing(db, user.id, drawing_id), name),
+        renameDrawing(
+          db,
+          getUserDrawing(db, user.id, drawing_id, "owner"),
+          name,
+        ),
       ),
     ),
   );

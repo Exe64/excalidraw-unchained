@@ -53,6 +53,13 @@ export const config = {
   /** encrypted collab scenes / share links not touched for this long are
    * deleted (0 disables the cleanup) */
   roomTtlMs: Number(process.env.ROOM_TTL_DAYS ?? 90) * 24 * 60 * 60 * 1000,
+  /** automatic database backups, in DATA_DIR/backups */
+  backups: {
+    /** 0 disables automatic backups */
+    intervalHours: Number(process.env.BACKUP_INTERVAL_HOURS ?? 24),
+    /** number of automatic backups kept */
+    keep: Number(process.env.BACKUP_KEEP ?? 14),
+  },
   /** backend of the editor's AI features ("text to diagram", "wireframe to
    * code"). Disabled unless AI_PROVIDER is set. */
   ai: {

@@ -1,5 +1,12 @@
-// Administration: registration mode and user accounts. Administrators only,
-// from the app (not with API tokens).
+// Administration: registration mode, user accounts and backups.
+// Administrators only, from the app (not with API tokens).
+
+import crypto from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+import express from "express";
 
 import {
   createUser,
@@ -8,6 +15,15 @@ import {
   setUserPassword,
   toPublicUser,
 } from "./auth.js";
+
+import {
+  createBackup,
+  deleteBackup,
+  getBackupPath,
+  listBackups,
+  stageRestore,
+} from "./backups.js";
+import { config } from "./config.js";
 import { getRegistrationMode, setRegistrationMode } from "./settings.js";
 
 const countActiveAdmins = (db) =>
@@ -17,7 +33,10 @@ const countActiveAdmins = (db) =>
     )
     .get().count;
 
-export const registerAdminRoutes = (api, { db, HttpError, requireSession }) => {
+export const registerAdminRoutes = (
+  api,
+  { db, HttpError, requireSession, requestRestart },
+) => {
   const requireAdmin = (req, res, next) => {
     if (!req.user.is_admin) {
       return next(new HttpError(403, "Action réservée aux administrateurs."));
@@ -144,4 +163,58 @@ export const registerAdminRoutes = (api, { db, HttpError, requireSession }) => {
     db.prepare("DELETE FROM users WHERE id = ?").run(user.id);
     res.json({ ok: true });
   });
+
+  // backups
+  // ---------------------------------------------------------------------------
+
+  api.get("/admin/backups", (req, res) => {
+    res.json({
+      backups: listBackups(),
+      intervalHours: config.backups.intervalHours,
+      keep: config.backups.keep,
+    });
+  });
+
+  api.post("/admin/backups", (req, res) => {
+    res.status(201).json({ backup: createBackup(db, "manual") });
+  });
+
+  api.get("/admin/backups/:name", (req, res) => {
+    res.download(getBackupPath(req.params.name), req.params.name);
+  });
+
+  api.delete("/admin/backups/:name", (req, res) => {
+    deleteBackup(req.params.name);
+    res.json({ ok: true });
+  });
+
+  /** restores an existing backup: the server restarts to apply it */
+  api.post("/admin/backups/:name/restore", (req, res) => {
+    stageRestore(db, getBackupPath(req.params.name));
+    res.json({ restarting: true });
+    requestRestart();
+  });
+
+  /** restores an uploaded backup file */
+  api.post(
+    "/admin/restore",
+    express.raw({ type: "application/octet-stream", limit: "2gb" }),
+    (req, res) => {
+      if (!Buffer.isBuffer(req.body) || !req.body.length) {
+        throw new HttpError(400, "Fichier manquant.");
+      }
+      const upload = path.join(
+        os.tmpdir(),
+        `excalidraw-upload-${crypto.randomUUID()}.sqlite`,
+      );
+      fs.writeFileSync(upload, req.body);
+      try {
+        stageRestore(db, upload);
+      } finally {
+        fs.rmSync(upload, { force: true });
+      }
+      res.json({ restarting: true });
+      requestRestart();
+    },
+  );
 };

@@ -8,6 +8,8 @@
 
 import crypto from "node:crypto";
 
+import { snapshotDrawing } from "./versions.js";
+
 export const MAX_NAME_LENGTH = 256;
 export const MAX_ELEMENTS_PER_OPERATION = 1000;
 const MAX_PENDING_OPS = 100;
@@ -68,6 +70,12 @@ export const toDrawingSummary = (row) => ({
   version: row.version,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
+  // the requesting user's access: owner, edit or view
+  role: row.role ?? "owner",
+  ownerUsername: row.owner_username ?? undefined,
+  folderId: row.folder_id ?? null,
+  favorite: !!row.favorite,
+  thumbnailUpdatedAt: row.thumbnail_at ?? null,
 });
 
 export const toDrawing = (row) => ({
@@ -77,32 +85,66 @@ export const toDrawing = (row) => ({
   pendingOps: JSON.parse(row.pending_ops || "[]"),
 });
 
-export const getUserDrawing = (db, userId, drawingId) => {
-  if (typeof drawingId !== "string" || !ID_RE.test(drawingId)) {
+// access
+// -----------------------------------------------------------------------------
+
+export const ROLES = ["view", "edit", "owner"];
+const ROLE_RANK = { view: 1, edit: 2, owner: 3 };
+
+export const assertId = (id) => {
+  if (typeof id !== "string" || !ID_RE.test(id)) {
     throw new DrawingError(400, "Identifiant invalide.");
   }
+};
+
+/** the drawing's columns, plus the requesting user's role and context */
+const ACCESSIBLE_DRAWINGS = `
+  SELECT d.*, u.username AS owner_username,
+    CASE WHEN d.owner_id = :user THEN 'owner' ELSE s.role END AS role,
+    CASE WHEN d.owner_id = :user THEN d.folder_id ELSE NULL END AS folder_id,
+    t.updated_at AS thumbnail_at,
+    f.user_id IS NOT NULL AS favorite
+  FROM drawings d
+  JOIN users u ON u.id = d.owner_id
+  LEFT JOIN drawing_shares s ON s.drawing_id = d.id AND s.user_id = :user
+  LEFT JOIN drawing_thumbnails t ON t.drawing_id = d.id
+  LEFT JOIN favorites f ON f.drawing_id = d.id AND f.user_id = :user
+  WHERE d.deleted_at IS NULL AND (d.owner_id = :user OR s.user_id IS NOT NULL)`;
+
+/**
+ * Returns a drawing the user can access with (at least) the `required` role:
+ * "view", "edit" or "owner". Drawings in the trash aren't accessible.
+ */
+export const getUserDrawing = (db, userId, drawingId, required = "owner") => {
+  assertId(drawingId);
   const row = db
-    .prepare("SELECT * FROM drawings WHERE id = ? AND owner_id = ?")
-    .get(drawingId, userId);
+    .prepare(`${ACCESSIBLE_DRAWINGS} AND d.id = :id`)
+    .get({ user: userId, id: drawingId });
   if (!row) {
     throw new DrawingError(404, "Dessin introuvable.");
+  }
+  if (ROLE_RANK[row.role] < ROLE_RANK[required]) {
+    throw new DrawingError(
+      403,
+      required === "owner"
+        ? "Seul le propriétaire du dessin peut faire cela."
+        : "Ce dessin est partagé avec vous en lecture seule.",
+    );
   }
   return row;
 };
 
+/** the user's drawings and the ones shared with them, most recent first */
 export const listUserDrawings = (db, userId) =>
   db
-    .prepare(
-      `SELECT id, name, version, created_at, updated_at FROM drawings
-       WHERE owner_id = ? ORDER BY updated_at DESC`,
-    )
-    .all(userId)
+    .prepare(`${ACCESSIBLE_DRAWINGS} ORDER BY d.updated_at DESC`)
+    .all({ user: userId })
     .map(toDrawingSummary);
 
 export const insertDrawing = (
   db,
   ownerId,
-  { name, elements, appState, pendingOps },
+  { name, elements, appState, pendingOps, folderId },
 ) => {
   const now = Date.now();
   const row = {
@@ -114,15 +156,16 @@ export const insertDrawing = (
       appState && typeof appState === "object" ? appState : {},
     ),
     pending_ops: JSON.stringify(pendingOps || []),
+    folder_id: folderId ? getUserFolder(db, ownerId, folderId).id : null,
     version: 1,
     created_at: now,
     updated_at: now,
   };
   db.prepare(
     `INSERT INTO drawings
-       (id, owner_id, name, elements, app_state, pending_ops, version, created_at, updated_at)
+       (id, owner_id, name, elements, app_state, pending_ops, folder_id, version, created_at, updated_at)
      VALUES
-       (:id, :owner_id, :name, :elements, :app_state, :pending_ops, :version, :created_at, :updated_at)`,
+       (:id, :owner_id, :name, :elements, :app_state, :pending_ops, :folder_id, :version, :created_at, :updated_at)`,
   ).run(row);
   return row;
 };
@@ -293,10 +336,11 @@ const bumpElement = (element, changes) => ({
   updated: Date.now(),
 });
 
-export const removeElements = (db, row, ids) => {
+export const removeElements = (db, row, ids, userId = null) => {
   if (!Array.isArray(ids) || !ids.length) {
     throw new DrawingError(400, "`element_ids` must be a non-empty array.");
   }
+  snapshotDrawing(db, row, { reason: "api", userId, force: true });
   const toRemove = new Set(ids);
   let removed = 0;
   const elements = JSON.parse(row.elements).map((element) => {
@@ -327,10 +371,11 @@ export const removeElements = (db, row, ids) => {
   return { row: writeDrawing(db, row, { elements, pendingOps }), removed };
 };
 
-export const updateElements = (db, row, updates) => {
+export const updateElements = (db, row, updates, userId = null) => {
   if (!Array.isArray(updates) || !updates.length) {
     throw new DrawingError(400, "`updates` must be a non-empty array.");
   }
+  snapshotDrawing(db, row, { reason: "api", userId, force: true });
   const byId = new Map();
   for (const update of updates) {
     if (!update || typeof update.id !== "string") {
@@ -478,4 +523,252 @@ export const describeDrawing = (row) => {
         : { type: "elements", elements: op.elements },
     ),
   };
+};
+
+// sharing with other users of the instance
+// -----------------------------------------------------------------------------
+
+export const SHARE_ROLES = ["view", "edit"];
+
+export const listShares = (db, drawingId) =>
+  db
+    .prepare(
+      `SELECT s.user_id, u.username, s.role, s.created_at FROM drawing_shares s
+       JOIN users u ON u.id = s.user_id
+       WHERE s.drawing_id = ? ORDER BY u.username`,
+    )
+    .all(drawingId)
+    .map((row) => ({
+      userId: row.user_id,
+      username: row.username,
+      role: row.role,
+      createdAt: row.created_at,
+    }));
+
+export const shareDrawing = (db, row, { username, role }) => {
+  if (!SHARE_ROLES.includes(role)) {
+    throw new DrawingError(400, "Droit d'accès invalide.");
+  }
+  const user =
+    typeof username === "string" &&
+    db
+      .prepare("SELECT id FROM users WHERE username = ? AND status = 'active'")
+      .get(username.trim());
+  if (!user) {
+    throw new DrawingError(404, `Utilisateur « ${username} » introuvable.`);
+  }
+  if (user.id === row.owner_id) {
+    throw new DrawingError(400, "C'est le propriétaire du dessin.");
+  }
+  db.prepare(
+    `INSERT INTO drawing_shares (drawing_id, user_id, role, created_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT (drawing_id, user_id) DO UPDATE SET role = excluded.role`,
+  ).run(row.id, user.id, role, Date.now());
+  return listShares(db, row.id);
+};
+
+export const unshareDrawing = (db, drawingId, userId) =>
+  db
+    .prepare("DELETE FROM drawing_shares WHERE drawing_id = ? AND user_id = ?")
+    .run(drawingId, userId).changes > 0;
+
+// folders & favorites
+// -----------------------------------------------------------------------------
+
+export const getUserFolder = (db, ownerId, folderId) => {
+  assertId(folderId);
+  const folder = db
+    .prepare("SELECT * FROM folders WHERE id = ? AND owner_id = ?")
+    .get(folderId, ownerId);
+  if (!folder) {
+    throw new DrawingError(404, "Dossier introuvable.");
+  }
+  return folder;
+};
+
+export const listFolders = (db, ownerId) =>
+  db
+    .prepare(
+      `SELECT f.id, f.name, f.created_at,
+         (SELECT COUNT(*) FROM drawings d
+          WHERE d.folder_id = f.id AND d.deleted_at IS NULL) AS drawing_count
+       FROM folders f WHERE f.owner_id = ? ORDER BY f.name COLLATE NOCASE`,
+    )
+    .all(ownerId)
+    .map((row) => ({
+      id: row.id,
+      name: row.name,
+      createdAt: row.created_at,
+      drawingCount: row.drawing_count,
+    }));
+
+export const createFolder = (db, ownerId, name) => {
+  const folder = {
+    id: crypto.randomUUID(),
+    owner_id: ownerId,
+    name: sanitizeName(name, ""),
+    created_at: Date.now(),
+  };
+  if (!folder.name) {
+    throw new DrawingError(400, "Nom de dossier manquant.");
+  }
+  db.prepare(
+    "INSERT INTO folders (id, owner_id, name, created_at) VALUES (:id, :owner_id, :name, :created_at)",
+  ).run(folder);
+  return { id: folder.id, name: folder.name, createdAt: folder.created_at };
+};
+
+export const renameFolder = (db, ownerId, folderId, name) => {
+  const folder = getUserFolder(db, ownerId, folderId);
+  const newName = sanitizeName(name, folder.name);
+  db.prepare("UPDATE folders SET name = ? WHERE id = ?").run(
+    newName,
+    folder.id,
+  );
+  return { id: folder.id, name: newName, createdAt: folder.created_at };
+};
+
+/** the folder's drawings are moved back to the root */
+export const deleteFolder = (db, ownerId, folderId) => {
+  const folder = getUserFolder(db, ownerId, folderId);
+  db.prepare("UPDATE drawings SET folder_id = NULL WHERE folder_id = ?").run(
+    folder.id,
+  );
+  db.prepare("DELETE FROM folders WHERE id = ?").run(folder.id);
+};
+
+export const moveDrawing = (db, row, folderId) => {
+  const folder = folderId ? getUserFolder(db, row.owner_id, folderId) : null;
+  db.prepare("UPDATE drawings SET folder_id = ? WHERE id = ?").run(
+    folder?.id ?? null,
+    row.id,
+  );
+};
+
+export const setFavorite = (db, userId, drawingId, favorite) => {
+  if (favorite) {
+    db.prepare(
+      "INSERT OR IGNORE INTO favorites (user_id, drawing_id) VALUES (?, ?)",
+    ).run(userId, drawingId);
+  } else {
+    db.prepare(
+      "DELETE FROM favorites WHERE user_id = ? AND drawing_id = ?",
+    ).run(userId, drawingId);
+  }
+};
+
+// trash
+// -----------------------------------------------------------------------------
+
+export const TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
+export const trashDrawing = (db, row) => {
+  db.prepare("UPDATE drawings SET deleted_at = ? WHERE id = ?").run(
+    Date.now(),
+    row.id,
+  );
+};
+
+const getTrashedDrawing = (db, ownerId, drawingId) => {
+  assertId(drawingId);
+  const row = db
+    .prepare(
+      "SELECT * FROM drawings WHERE id = ? AND owner_id = ? AND deleted_at IS NOT NULL",
+    )
+    .get(drawingId, ownerId);
+  if (!row) {
+    throw new DrawingError(404, "Dessin introuvable dans la corbeille.");
+  }
+  return row;
+};
+
+export const listTrash = (db, ownerId) =>
+  db
+    .prepare(
+      `SELECT d.id, d.name, d.version, d.created_at, d.updated_at, d.deleted_at,
+         t.updated_at AS thumbnail_at
+       FROM drawings d
+       LEFT JOIN drawing_thumbnails t ON t.drawing_id = d.id
+       WHERE d.owner_id = ? AND d.deleted_at IS NOT NULL
+       ORDER BY d.deleted_at DESC`,
+    )
+    .all(ownerId)
+    .map((row) => ({
+      ...toDrawingSummary(row),
+      deletedAt: row.deleted_at,
+      purgeAt: row.deleted_at + TRASH_RETENTION_MS,
+    }));
+
+export const restoreFromTrash = (db, ownerId, drawingId) => {
+  const row = getTrashedDrawing(db, ownerId, drawingId);
+  db.prepare("UPDATE drawings SET deleted_at = NULL WHERE id = ?").run(row.id);
+};
+
+export const deleteForever = (db, ownerId, drawingId) => {
+  const row = getTrashedDrawing(db, ownerId, drawingId);
+  db.prepare("DELETE FROM drawings WHERE id = ?").run(row.id);
+};
+
+export const emptyTrash = (db, ownerId) =>
+  db
+    .prepare(
+      "DELETE FROM drawings WHERE owner_id = ? AND deleted_at IS NOT NULL",
+    )
+    .run(ownerId).changes;
+
+/** deletes drawings that have been in the trash for too long */
+export const purgeTrash = (db) =>
+  db
+    .prepare("DELETE FROM drawings WHERE deleted_at < ?")
+    .run(Date.now() - TRASH_RETENTION_MS).changes;
+
+// thumbnails
+// -----------------------------------------------------------------------------
+
+const THUMBNAIL_TYPES = ["image/png", "image/webp", "image/jpeg"];
+const MAX_THUMBNAIL_BYTES = 512 * 1024;
+
+export const setThumbnail = (db, drawingId, mimeType, data) => {
+  if (!THUMBNAIL_TYPES.includes(mimeType)) {
+    throw new DrawingError(400, "Format d'aperçu non supporté.");
+  }
+  if (!data?.length || data.length > MAX_THUMBNAIL_BYTES) {
+    throw new DrawingError(413, "Aperçu trop volumineux.");
+  }
+  db.prepare(
+    `INSERT INTO drawing_thumbnails (drawing_id, mime_type, data, updated_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT (drawing_id) DO UPDATE SET mime_type = excluded.mime_type,
+       data = excluded.data, updated_at = excluded.updated_at`,
+  ).run(drawingId, mimeType, data, Date.now());
+};
+
+export const getThumbnail = (db, drawingId) =>
+  db
+    .prepare("SELECT * FROM drawing_thumbnails WHERE drawing_id = ?")
+    .get(drawingId);
+
+// image files
+// -----------------------------------------------------------------------------
+
+/**
+ * Image files are stored per user. In a shared drawing, images may have been
+ * added by any of its users: look them up among those too.
+ */
+export const findFile = (db, userId, fileId, drawingId) => {
+  const own = db
+    .prepare("SELECT * FROM files WHERE owner_id = ? AND id = ?")
+    .get(userId, fileId);
+  if (own || !drawingId) {
+    return own;
+  }
+  const drawing = getUserDrawing(db, userId, drawingId, "view");
+  return db
+    .prepare(
+      `SELECT * FROM files WHERE id = ? AND owner_id IN (
+         SELECT ? UNION SELECT user_id FROM drawing_shares WHERE drawing_id = ?)
+       LIMIT 1`,
+    )
+    .get(fileId, drawing.owner_id, drawing.id);
 };

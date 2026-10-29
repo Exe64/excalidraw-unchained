@@ -1,12 +1,18 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import http from "node:http";
+import os from "node:os";
+import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { createApp } from "../src/app.js";
+import { applyPendingRestore } from "../src/backups.js";
+import { config } from "../src/config.js";
 import { openDatabase } from "../src/db.js";
 
 let server;
 let baseUrl;
+let restarts = 0;
 
 const HEADERS = {
   "Content-Type": "application/json",
@@ -32,7 +38,12 @@ const login = (username, password) =>
 
 before(async () => {
   // a brand new instance, without any account
-  server = http.createServer(createApp(openDatabase(":memory:")));
+  config.dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "excalidraw-test-"));
+  server = http.createServer(
+    createApp(openDatabase(":memory:"), {
+      requestRestart: () => restarts++,
+    }),
+  );
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   baseUrl = `http://127.0.0.1:${server.address().port}`;
 });
@@ -40,6 +51,7 @@ before(async () => {
 after(() => {
   server.closeAllConnections();
   server.close();
+  fs.rmSync(config.dataDir, { recursive: true, force: true });
 });
 
 describe("registration and administration", () => {
@@ -170,5 +182,80 @@ describe("registration and administration", () => {
       admin,
     );
     assert.equal(demoteSelf.status, 400);
+  });
+
+  it("backs up and restores the database", async () => {
+    const created = await request("POST", "/admin/backups", {}, admin);
+    assert.equal(created.status, 201);
+    const { name } = created.body.backup;
+    assert.match(name, /^excalidraw-\d{8}-\d{6}-manual\.sqlite$/);
+
+    const listed = (await request("GET", "/admin/backups", undefined, admin))
+      .body;
+    assert.equal(listed.backups[0].name, name);
+    assert.equal(listed.intervalHours, 24);
+
+    const download = await fetch(`${baseUrl}/api/admin/backups/${name}`, {
+      headers: { Cookie: admin },
+    });
+    const bytes = Buffer.from(await download.arrayBuffer());
+    assert.equal(bytes.subarray(0, 15).toString(), "SQLite format 3");
+
+    // invalid uploads are rejected
+    const invalid = await fetch(`${baseUrl}/api/admin/restore`, {
+      method: "POST",
+      headers: {
+        Cookie: admin,
+        "Content-Type": "application/octet-stream",
+        "X-Requested-With": "excalidraw",
+      },
+      body: Buffer.from("not a database"),
+    });
+    assert.equal(invalid.status, 400);
+    assert.equal(restarts, 0);
+
+    // a valid one is staged, and applied at the next start
+    const restored = await fetch(`${baseUrl}/api/admin/restore`, {
+      method: "POST",
+      headers: {
+        Cookie: admin,
+        "Content-Type": "application/octet-stream",
+        "X-Requested-With": "excalidraw",
+      },
+      body: bytes,
+    });
+    assert.equal(restored.status, 200);
+    assert.equal(restarts, 1);
+    assert.ok(
+      (await request("GET", "/admin/backups", undefined, admin)).body.backups
+        .map((backup) => backup.name)
+        .some((backupName) => backupName.includes("before-restore")),
+    );
+    assert.equal(applyPendingRestore(config.dataDir), true);
+    assert.ok(fs.existsSync(path.join(config.dataDir, "excalidraw.sqlite")));
+    assert.equal(applyPendingRestore(config.dataDir), false);
+
+    // other users can't
+    await request(
+      "PUT",
+      "/admin/settings",
+      { registrationMode: "approval" },
+      admin,
+    );
+    const createdCarol = await request(
+      "POST",
+      "/admin/users",
+      {
+        username: "carol",
+        password: "carol-password",
+      },
+      admin,
+    );
+    assert.equal(createdCarol.status, 201);
+    const carol = (await login("carol", "carol-password")).cookie;
+    assert.equal(
+      (await request("GET", "/admin/backups", undefined, carol)).status,
+      403,
+    );
   });
 });
