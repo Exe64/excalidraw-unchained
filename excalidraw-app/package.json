@@ -26,6 +26,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "@excalidraw/mermaid-to-excalidraw": "3.0.0",
     "@excalidraw/random-username": "1.0.0",
     "@sentry/browser": "9.0.1",
     "callsites": "4.2.0",

@@ -6,6 +6,8 @@ import type { AppState } from "@excalidraw/excalidraw/types";
 
 import { apiRequest } from "./api";
 
+import type { PendingOp } from "./pendingOps";
+
 export type DrawingSummary = {
   id: string;
   name: string;
@@ -17,6 +19,8 @@ export type DrawingSummary = {
 export type Drawing = DrawingSummary & {
   elements: ExcalidrawElement[];
   appState: Partial<AppState>;
+  /** changes requested through the API (e.g. by an AI assistant) */
+  pendingOps?: PendingOp[];
 };
 
 const path = (id: string) => `/drawings/${encodeURIComponent(id)}`;
@@ -59,6 +63,8 @@ export const DrawingsAPI = {
       elements: readonly ExcalidrawElement[];
       appState: Partial<AppState>;
       baseVersion: number;
+      /** pending operations included in `elements` */
+      appliedOps?: string[];
     },
     opts?: { keepalive?: boolean },
   ) =>

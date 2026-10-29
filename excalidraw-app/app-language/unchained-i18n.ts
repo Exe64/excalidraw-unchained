@@ -54,6 +54,33 @@ const en = {
   "drawings.collabStopSaveCurrent":
     'Stopping the session will save the drawing to "{{name}}". Continue?',
   "drawings.importedCopy": "The shared drawing was added to your drawings.",
+  "drawings.opsApplied":
+    "Changes made through the API (AI assistant) were applied.",
+  "drawings.opsFailed":
+    "Some changes made through the API couldn't be applied: {{error}}",
+  "api.title": "API access (MCP)",
+  "api.intro":
+    "Access tokens let an AI assistant such as Claude, or a script, read and create your drawings through the MCP server of this instance. A token gives access to all your drawings: keep it secret and revoke it when you no longer need it.",
+  "api.tokenName": "Token name",
+  "api.create": "Create a token",
+  "api.tokenOnce": "Copy your token now: it won't be shown again.",
+  "api.token": "Token",
+  "api.claudeCode": "Claude Code (terminal)",
+  "api.connector":
+    "Connector URL (Claude app, claude.ai: Settings > Connectors > Add custom connector)",
+  "api.connectorHint":
+    "This URL contains the token: don't share it. claude.ai connectors require the instance to be reachable from the Internet over HTTPS.",
+  "api.jsonConfig": "Other MCP clients (JSON configuration)",
+  "api.copy": "Copy",
+  "api.copied": "Copied",
+  "api.tokens": "Your tokens",
+  "api.noTokens": "No token yet.",
+  "api.created": "Created {{date}}",
+  "api.lastUsed": "last used {{date}}",
+  "api.never": "never",
+  "api.revoke": "Revoke",
+  "api.revokeConfirm":
+    'Revoke the token "{{name}}"? Assistants using it will lose access.',
   "welcome.heading": "Your drawings are saved on the server.",
   "welcome.heading_line2": 'Find them all in "My drawings", from any device.',
 };
@@ -108,6 +135,33 @@ const fr: Partial<Record<Key, string>> = {
   "drawings.collabStopSaveCurrent":
     "Arrêter la session enregistrera le dessin dans « {{name}} ». Continuer ?",
   "drawings.importedCopy": "Le dessin partagé a été ajouté à vos dessins.",
+  "drawings.opsApplied":
+    "Les modifications faites via l'API (assistant IA) ont été appliquées.",
+  "drawings.opsFailed":
+    "Certaines modifications faites via l'API n'ont pas pu être appliquées : {{error}}",
+  "api.title": "Accès API (MCP)",
+  "api.intro":
+    "Les jetons d'accès permettent à un assistant IA comme Claude, ou à un script, de lire et de créer vos dessins via le serveur MCP de cette instance. Un jeton donne accès à tous vos dessins : gardez-le secret et révoquez-le dès qu'il ne sert plus.",
+  "api.tokenName": "Nom du jeton",
+  "api.create": "Créer un jeton",
+  "api.tokenOnce": "Copiez votre jeton maintenant : il ne sera plus affiché.",
+  "api.token": "Jeton",
+  "api.claudeCode": "Claude Code (terminal)",
+  "api.connector":
+    "URL de connecteur (app Claude, claude.ai : Paramètres > Connecteurs > Ajouter un connecteur personnalisé)",
+  "api.connectorHint":
+    "Cette URL contient le jeton : ne la partagez pas. Les connecteurs claude.ai exigent que l'instance soit joignable depuis Internet en HTTPS.",
+  "api.jsonConfig": "Autres clients MCP (configuration JSON)",
+  "api.copy": "Copier",
+  "api.copied": "Copié",
+  "api.tokens": "Vos jetons",
+  "api.noTokens": "Aucun jeton pour l'instant.",
+  "api.created": "Créé {{date}}",
+  "api.lastUsed": "dernière utilisation {{date}}",
+  "api.never": "jamais",
+  "api.revoke": "Révoquer",
+  "api.revokeConfirm":
+    "Révoquer le jeton « {{name}} » ? Les assistants qui l'utilisent perdront l'accès.",
   "welcome.heading": "Vos dessins sont enregistrés sur le serveur.",
   "welcome.heading_line2":
     "Retrouvez-les dans « Mes dessins », depuis n'importe quel appareil.",

@@ -56,4 +56,69 @@ describe("server-side drawings", () => {
       baseVersion: 1,
     });
   });
+
+  it("converts changes requested through the API and acknowledges them", async () => {
+    const { drawings } = installFakeServer();
+    const drawing = drawings.get("drawing-1");
+    drawing.pendingOps = [
+      {
+        id: "op-1",
+        type: "elements",
+        elements: [
+          {
+            type: "rectangle",
+            id: "api",
+            x: 0,
+            y: 0,
+            width: 160,
+            height: 80,
+            label: { text: "API" },
+          },
+          {
+            type: "rectangle",
+            id: "db",
+            x: 300,
+            y: 0,
+            width: 160,
+            height: 80,
+          },
+          {
+            type: "arrow",
+            id: "link",
+            x: 160,
+            y: 40,
+            points: [
+              [0, 0],
+              [140, 0],
+            ],
+            start: { id: "api" },
+            end: { id: "db" },
+          },
+        ],
+      },
+    ];
+
+    await render(<ExcalidrawApp />);
+
+    await waitFor(() => {
+      expect(h.elements.map((element) => element.type).sort()).toEqual([
+        "arrow",
+        "rectangle",
+        "rectangle",
+        "text",
+      ]);
+    });
+    const arrow = h.elements.find((element) => element.id === "link") as any;
+    expect(arrow.startBinding?.elementId).toBe("api");
+    expect(arrow.endBinding?.elementId).toBe("db");
+
+    // saved, and the operation acknowledged
+    await waitFor(
+      () => {
+        expect(drawing.pendingOps).toEqual([]);
+        expect(drawing.elements.length).toBe(4);
+      },
+      { timeout: 3000 },
+    );
+  });
 });

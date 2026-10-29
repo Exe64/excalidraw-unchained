@@ -1,0 +1,164 @@
+.excalidraw {
+  .ApiAccessDialog {
+    .Dialog__content {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+  }
+
+  .ApiAccessDialog__intro,
+  .ApiAccessDialog__hint,
+  .ApiAccessDialog__empty {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--color-gray-60);
+  }
+
+  .ApiAccessDialog__create {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+
+    .ExcTextField {
+      flex: 1 1 auto;
+    }
+
+    .ExcButton {
+      flex: 0 0 auto;
+    }
+  }
+
+  .ApiAccessDialog__error {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: var(--border-radius-md);
+    color: var(--color-danger-text, #db6965);
+    background-color: var(--color-danger-background, #fff0f0);
+  }
+
+  .ApiAccessDialog__newToken {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+    border-radius: var(--border-radius-lg);
+    border: 1px solid var(--color-primary);
+    background-color: var(--color-surface-primary-container);
+  }
+
+  .ApiAccessDialog__warning {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  .ApiAccessDialog__snippet {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+
+    pre {
+      margin: 0;
+      padding: 0.5rem 0.75rem;
+      font-family: var(--font-family-code, monospace);
+      font-size: 0.75rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+      user-select: all;
+      border-radius: var(--border-radius-md);
+      background-color: var(--island-bg-color);
+      border: 1px solid var(--dialog-border-color);
+    }
+  }
+
+  .ApiAccessDialog__snippetHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
+  .ApiAccessDialog__copy {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    font-family: inherit;
+    font-size: 0.75rem;
+    color: var(--color-primary);
+    background: none;
+    border: none;
+    border-radius: var(--border-radius-md);
+
+    svg {
+      width: 0.875rem;
+      height: 0.875rem;
+    }
+
+    &:hover {
+      background-color: var(--color-primary-light);
+    }
+  }
+
+  .ApiAccessDialog__subtitle {
+    margin: 0.5rem 0 0;
+    font-size: 1rem;
+  }
+
+  .ApiAccessDialog__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .ApiAccessDialog__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--border-radius-md);
+
+    &:hover {
+      background-color: var(--button-hover-bg, var(--color-surface-high));
+    }
+  }
+
+  .ApiAccessDialog__name {
+    font-weight: 600;
+  }
+
+  .ApiAccessDialog__meta {
+    font-size: 0.75rem;
+    color: var(--color-gray-50);
+  }
+
+  .ApiAccessDialog__revoke {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--border-radius-md);
+    background: none;
+    color: var(--icon-fill-color);
+
+    svg {
+      width: 1rem;
+      height: 1rem;
+    }
+
+    &:hover {
+      color: var(--color-danger, #db6965);
+      background-color: var(--button-hover-bg, var(--color-surface-low));
+    }
+  }
+}

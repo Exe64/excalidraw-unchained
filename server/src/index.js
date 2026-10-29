@@ -26,6 +26,15 @@ if (countUsers(db) === 0) {
   }
 }
 
+if (config.ai.provider) {
+  if (!config.ai.model) {
+    console.warn("AI_PROVIDER is set but AI_MODEL is missing.");
+  }
+  console.log(
+    `AI features: ${config.ai.provider} (${config.ai.model || "no model"})`,
+  );
+}
+
 const cleanup = () => {
   purgeExpiredSessions(db);
   if (config.roomTtlMs > 0) {

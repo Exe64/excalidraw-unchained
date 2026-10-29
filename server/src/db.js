@@ -65,6 +65,17 @@ CREATE TABLE IF NOT EXISTS share_links (
   created_at INTEGER NOT NULL
 );
 
+-- personal access tokens (API / MCP clients such as Claude)
+CREATE TABLE IF NOT EXISTS api_tokens (
+  id           TEXT PRIMARY KEY,
+  user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,
+  token_hash   TEXT NOT NULL UNIQUE,
+  created_at   INTEGER NOT NULL,
+  last_used_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS api_tokens_user ON api_tokens(user_id);
+
 -- encrypted image files of collab rooms and share links
 CREATE TABLE IF NOT EXISTS blobs (
   prefix     TEXT NOT NULL,
@@ -75,6 +86,23 @@ CREATE TABLE IF NOT EXISTS blobs (
   PRIMARY KEY (prefix, id)
 );
 `;
+
+const hasColumn = (db, table, column) =>
+  db
+    .prepare(`PRAGMA table_info(${table})`)
+    .all()
+    .some((row) => row.name === column);
+
+/** schema changes for databases created by earlier versions */
+const migrate = (db) => {
+  if (!hasColumn(db, "drawings", "pending_ops")) {
+    // changes requested through the API (e.g. by an AI assistant over MCP),
+    // converted to elements by the editor the next time it opens the drawing
+    db.exec(
+      "ALTER TABLE drawings ADD COLUMN pending_ops TEXT NOT NULL DEFAULT '[]'",
+    );
+  }
+};
 
 export const openDatabase = (dataDir) => {
   let filename = ":memory:";
@@ -87,6 +115,7 @@ export const openDatabase = (dataDir) => {
   db.exec("PRAGMA foreign_keys = ON;");
   db.exec("PRAGMA busy_timeout = 5000;");
   db.exec(SCHEMA);
+  migrate(db);
   return db;
 };
 

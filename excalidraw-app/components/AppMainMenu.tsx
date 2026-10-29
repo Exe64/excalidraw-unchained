@@ -1,6 +1,7 @@
 import {
   LoadIcon,
   PlusIcon,
+  brainIcon,
   eyeIcon,
 } from "@excalidraw/excalidraw/components/icons";
 import { MainMenu } from "@excalidraw/excalidraw/index";
@@ -42,6 +43,7 @@ export const AppMainMenu: React.FC<{
   onDrawingsDialogOpen: () => void;
   onNewDrawing: () => void;
   onLogout: () => void;
+  onApiAccessDialogOpen: () => void;
 }> = React.memo((props) => {
   const { t: tu } = useUnchainedI18n();
   const user = useAtomValue(currentUserAtom);
@@ -70,6 +72,9 @@ export const AppMainMenu: React.FC<{
       <MainMenu.DefaultItems.ClearCanvas />
       <MainMenu.Separator />
       <MainMenu.DefaultItems.Socials />
+      <MainMenu.Item icon={brainIcon} onSelect={props.onApiAccessDialogOpen}>
+        {tu("api.title")}
+      </MainMenu.Item>
       <MainMenu.Item
         icon={logoutIcon}
         onSelect={props.onLogout}

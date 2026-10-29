@@ -34,11 +34,13 @@ import { ApiError, apiRequest } from "./api";
 import { DrawingsAPI } from "./drawings";
 import { FileManager } from "./FileManager";
 import { FileStatusStore } from "./fileStatusStore";
+import { convertPendingOps } from "./pendingOps";
 import { Locker } from "./Locker";
 
 import { getSyncableElements } from ".";
 
 import type { Drawing, DrawingSummary } from "./drawings";
+import type { PendingOp } from "./pendingOps";
 
 const SAVE_RETRY_TIMEOUT = 5000;
 
@@ -117,6 +119,8 @@ export class ServerData {
   /** server version the editor's state is based on */
   private static version = 0;
   private static savedSignature: string | null = null;
+  /** pending operations converted into the scene, not acknowledged yet */
+  private static appliedOps = new Set<string>();
 
   private static pending: SaveArgs | null = null;
   private static timer: number | null = null;
@@ -143,11 +147,19 @@ export class ServerData {
       elements: readonly ExcalidrawElement[];
       appState: Pick<AppState, "name" | "viewBackgroundColor">;
     },
+    opts?: {
+      /** pending operations of `drawing` already converted into the scene */
+      appliedOps?: readonly string[];
+    },
   ) {
     this.cancelPendingSave();
     this.drawingId = drawing.id;
     this.version = drawing.version;
-    this.savedSignature = getChangeSignature(scene.elements, scene.appState);
+    this.appliedOps = new Set(opts?.appliedOps);
+    // converted operations must be saved (and acknowledged) right away
+    this.savedSignature = this.appliedOps.size
+      ? null
+      : getChangeSignature(scene.elements, scene.appState);
     appJotaiStore.set(currentDrawingAtom, {
       id: drawing.id,
       name: drawing.name,
@@ -236,6 +248,26 @@ export class ServerData {
     return drawing;
   }
 
+  /** pending operations of `drawing` that haven't been converted yet */
+  static getOpsToApply(drawing: Drawing): PendingOp[] {
+    return (drawing.pendingOps || []).filter(
+      (op) => !this.appliedOps.has(op.id),
+    );
+  }
+
+  /** saves the editor's current state (e.g. after converting operations) */
+  static requestSave() {
+    const api = this.excalidrawAPI;
+    if (api) {
+      this.save(
+        api.getSceneElementsIncludingDeleted(),
+        api.getAppState(),
+        api.getFiles(),
+        () => {},
+      );
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // saving
   // ---------------------------------------------------------------------------
@@ -248,7 +280,7 @@ export class ServerData {
     onFilesSaved: () => void,
   ) => {
     // we need to make the `isSavePaused` check synchronously (undebounced)
-    if (this.isSavePaused() || !this.drawingId) {
+    if (this.isSavePaused() || !this.drawingId || appState.isLoading) {
       return;
     }
     this.pending = { elements, appState, files, onFilesSaved };
@@ -333,15 +365,17 @@ export class ServerData {
     onFilesSaved();
 
     const signature = getChangeSignature(elements, appState);
-    if (signature === this.savedSignature) {
+    if (signature === this.savedSignature && !this.appliedOps.size) {
       return;
     }
 
+    const appliedOps = [...this.appliedOps];
     const payload = {
       name: appState.name || "",
       elements: getSyncableElements(elements as any),
       appState: getPersistableAppState(appState),
       baseVersion: this.version,
+      appliedOps,
     };
 
     try {
@@ -351,6 +385,7 @@ export class ServerData {
       }
       this.version = result.version;
       this.savedSignature = signature;
+      appliedOps.forEach((id) => this.appliedOps.delete(id));
       this.updateCurrentDrawing({
         name: result.name,
         version: result.version,
@@ -394,11 +429,26 @@ export class ServerData {
     }
     const localElements = api.getSceneElementsIncludingDeleted();
     const remoteElements = restoreElements(remote.elements, localElements);
-    const reconciledElements = reconcileElements(
+    let reconciledElements: readonly ExcalidrawElement[] = reconcileElements(
       localElements,
       remoteElements as RemoteExcalidrawElement[],
       api.getAppState(),
     );
+    // changes requested through the API in the meantime
+    const ops = this.getOpsToApply(remote);
+    if (ops.length) {
+      const converted = await convertPendingOps(ops, reconciledElements);
+      reconciledElements = restoreElements(
+        [...reconciledElements, ...converted.elements],
+        null,
+        { repairBindings: true },
+      );
+      api.addFiles(converted.files);
+      ops.forEach((op) => this.appliedOps.add(op.id));
+    }
+    if (drawingId !== this.drawingId) {
+      return;
+    }
     this.version = remote.version;
     // force a save of the merged state
     this.savedSignature = null;

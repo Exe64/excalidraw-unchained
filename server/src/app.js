@@ -22,13 +22,28 @@ import {
   toPublicUser,
   verifyPassword,
 } from "./auth.js";
+import { diagramToCodeHandler, getAiInfo, textToDiagramHandler } from "./ai.js";
 import { config } from "./config.js";
 import { transaction } from "./db.js";
+import {
+  getUserDrawing,
+  insertDrawing,
+  listUserDrawings,
+  sanitizeName,
+  toDrawing,
+  toDrawingSummary,
+} from "./drawings.js";
+import { createMcpRouter } from "./mcp.js";
+import {
+  createApiToken,
+  deleteApiToken,
+  getApiTokenUser,
+  getBearerToken,
+  listApiTokens,
+} from "./tokens.js";
 
 const ID_RE = /^[a-zA-Z0-9_-]{1,64}$/;
 const BLOB_KINDS = new Set(["rooms", "shareLinks"]);
-const MAX_NAME_LENGTH = 256;
-
 class HttpError extends Error {
   constructor(status, message, extra) {
     super(message);
@@ -37,6 +52,19 @@ class HttpError extends Error {
   }
 }
 
+const isSameOrigin = (req) => {
+  const origin = req.get("Origin");
+  if (!origin) {
+    return false;
+  }
+  try {
+    const host = req.get("X-Forwarded-Host") || req.get("Host");
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+};
+
 const assertId = (...ids) => {
   for (const id of ids) {
     if (typeof id !== "string" || !ID_RE.test(id)) {
@@ -44,36 +72,6 @@ const assertId = (...ids) => {
     }
   }
 };
-
-const sanitizeName = (name, fallback) => {
-  if (typeof name !== "string") {
-    return fallback;
-  }
-  const trimmed = name.trim().slice(0, MAX_NAME_LENGTH);
-  return trimmed || fallback;
-};
-
-const defaultDrawingName = () => {
-  const d = new Date();
-  const pad = (n) => String(n).padStart(2, "0");
-  return `Untitled-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
-    d.getDate(),
-  )}-${pad(d.getHours())}${pad(d.getMinutes())}`;
-};
-
-const toDrawingSummary = (row) => ({
-  id: row.id,
-  name: row.name,
-  version: row.version,
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-});
-
-const toDrawing = (row) => ({
-  ...toDrawingSummary(row),
-  elements: JSON.parse(row.elements),
-  appState: JSON.parse(row.app_state),
-});
 
 export const createApp = (db) => {
   const app = express();
@@ -93,9 +91,15 @@ export const createApp = (db) => {
     // Mutating requests must carry a custom header. Browsers won't send one
     // cross-origin without a CORS preflight (which we never allow), so this
     // protects cookie-authenticated endpoints against CSRF.
+    // (requests authenticated with an API token in the Authorization header
+    // aren't exposed to CSRF: browsers never add that header on their own;
+    // the editor's AI features can't add the custom header, they're checked
+    // against their Origin instead)
     if (
       !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
-      req.get("X-Requested-With") !== "excalidraw"
+      req.get("X-Requested-With") !== "excalidraw" &&
+      !getBearerToken(req) &&
+      !isSameOrigin(req)
     ) {
       return next(new HttpError(403, "Requête refusée."));
     }
@@ -106,11 +110,23 @@ export const createApp = (db) => {
   // ---------------------------------------------------------------------------
 
   const authenticate = (req, res, next) => {
-    const user = getSessionUser(db, getSessionToken(req));
+    const bearer = getBearerToken(req);
+    const user = bearer
+      ? getApiTokenUser(db, bearer)
+      : getSessionUser(db, getSessionToken(req));
     if (!user) {
       return next(new HttpError(401, "Authentification requise."));
     }
     req.user = user;
+    req.authMethod = bearer ? "token" : "session";
+    next();
+  };
+
+  /** for actions that must not be possible with an API token */
+  const requireSession = (req, res, next) => {
+    if (req.authMethod !== "session") {
+      return next(new HttpError(403, "Action réservée à l'application."));
+    }
     next();
   };
 
@@ -173,7 +189,7 @@ export const createApp = (db) => {
     res.json({ ok: true });
   });
 
-  api.post("/auth/password", authenticate, async (req, res) => {
+  api.post("/auth/password", authenticate, requireSession, async (req, res) => {
     const { currentPassword, newPassword } = req.body || {};
     if (
       typeof currentPassword !== "string" ||
@@ -197,52 +213,15 @@ export const createApp = (db) => {
   // drawings
   // ---------------------------------------------------------------------------
 
-  const getOwnDrawing = (req) => {
-    assertId(req.params.id);
-    const row = db
-      .prepare("SELECT * FROM drawings WHERE id = ? AND owner_id = ?")
-      .get(req.params.id, req.user.id);
-    if (!row) {
-      throw new HttpError(404, "Dessin introuvable.");
-    }
-    return row;
-  };
-
-  const insertDrawing = (ownerId, { name, elements, appState }) => {
-    const now = Date.now();
-    const row = {
-      id: crypto.randomUUID(),
-      owner_id: ownerId,
-      name: sanitizeName(name, defaultDrawingName()),
-      elements: JSON.stringify(Array.isArray(elements) ? elements : []),
-      app_state: JSON.stringify(
-        appState && typeof appState === "object" ? appState : {},
-      ),
-      version: 1,
-      created_at: now,
-      updated_at: now,
-    };
-    db.prepare(
-      `INSERT INTO drawings
-         (id, owner_id, name, elements, app_state, version, created_at, updated_at)
-       VALUES
-         (:id, :owner_id, :name, :elements, :app_state, :version, :created_at, :updated_at)`,
-    ).run(row);
-    return row;
-  };
+  const getOwnDrawing = (req) => getUserDrawing(db, req.user.id, req.params.id);
 
   api.get("/drawings", (req, res) => {
-    const rows = db
-      .prepare(
-        `SELECT id, name, version, created_at, updated_at FROM drawings
-         WHERE owner_id = ? ORDER BY updated_at DESC`,
-      )
-      .all(req.user.id);
-    res.json({ drawings: rows.map(toDrawingSummary) });
+    res.json({ drawings: listUserDrawings(db, req.user.id) });
   });
 
   api.post("/drawings", (req, res) => {
-    const row = insertDrawing(req.user.id, req.body || {});
+    const { name, elements, appState } = req.body || {};
+    const row = insertDrawing(db, req.user.id, { name, elements, appState });
     res.status(201).json({ drawing: toDrawing(row) });
   });
 
@@ -265,7 +244,8 @@ export const createApp = (db) => {
   });
 
   api.put("/drawings/:id", (req, res) => {
-    const { name, elements, appState, baseVersion } = req.body || {};
+    const { name, elements, appState, baseVersion, appliedOps } =
+      req.body || {};
     if (!Array.isArray(elements)) {
       throw new HttpError(400, "Contenu du dessin invalide.");
     }
@@ -276,6 +256,11 @@ export const createApp = (db) => {
           version: row.version,
         });
       }
+      // pending operations the editor converted into these elements
+      const applied = new Set(Array.isArray(appliedOps) ? appliedOps : []);
+      const pendingOps = JSON.parse(row.pending_ops || "[]").filter(
+        (op) => !applied.has(op.id),
+      );
       const updated = {
         id: row.id,
         name: sanitizeName(name, row.name),
@@ -283,12 +268,14 @@ export const createApp = (db) => {
         app_state: JSON.stringify(
           appState && typeof appState === "object" ? appState : {},
         ),
+        pending_ops: JSON.stringify(pendingOps),
         version: row.version + 1,
         updated_at: Date.now(),
       };
       db.prepare(
         `UPDATE drawings SET name = :name, elements = :elements,
-           app_state = :app_state, version = :version, updated_at = :updated_at
+           app_state = :app_state, pending_ops = :pending_ops,
+           version = :version, updated_at = :updated_at
          WHERE id = :id`,
       ).run(updated);
       return updated;
@@ -309,10 +296,11 @@ export const createApp = (db) => {
 
   api.post("/drawings/:id/duplicate", (req, res) => {
     const row = getOwnDrawing(req);
-    const copy = insertDrawing(req.user.id, {
+    const copy = insertDrawing(db, req.user.id, {
       name: sanitizeName(req.body?.name, `${row.name} (copie)`),
       elements: JSON.parse(row.elements),
       appState: JSON.parse(row.app_state),
+      pendingOps: JSON.parse(row.pending_ops || "[]"),
     });
     res.status(201).json({ drawing: toDrawingSummary(copy) });
   });
@@ -320,6 +308,48 @@ export const createApp = (db) => {
   api.delete("/drawings/:id", (req, res) => {
     const row = getOwnDrawing(req);
     db.prepare("DELETE FROM drawings WHERE id = ?").run(row.id);
+    res.json({ ok: true });
+  });
+
+  // AI features of the editor
+  // ---------------------------------------------------------------------------
+
+  api.get("/ai/config", (req, res) => {
+    res.json(getAiInfo());
+  });
+  api.post(
+    "/ai/v1/ai/text-to-diagram/chat-streaming",
+    requireSession,
+    textToDiagramHandler,
+  );
+  api.post(
+    "/ai/v1/ai/diagram-to-code/generate-streaming",
+    requireSession,
+    diagramToCodeHandler,
+  );
+
+  // personal access tokens (for MCP clients, scripts…)
+  // ---------------------------------------------------------------------------
+
+  api.get("/tokens", requireSession, (req, res) => {
+    res.json({ tokens: listApiTokens(db, req.user.id) });
+  });
+
+  api.post("/tokens", requireSession, (req, res) => {
+    let result;
+    try {
+      result = createApiToken(db, req.user.id, req.body?.name);
+    } catch (error) {
+      throw new HttpError(400, error.message);
+    }
+    res.status(201).json(result);
+  });
+
+  api.delete("/tokens/:id", requireSession, (req, res) => {
+    assertId(req.params.id);
+    if (!deleteApiToken(db, req.user.id, req.params.id)) {
+      throw new HttpError(404, "Jeton introuvable.");
+    }
     res.json({ ok: true });
   });
 
@@ -535,6 +565,7 @@ export const createApp = (db) => {
   api.use((req, res, next) => next(new HttpError(404, "Introuvable.")));
 
   app.use("/api", api);
+  app.use("/mcp", createMcpRouter(db));
 
   // frontend
   // ---------------------------------------------------------------------------
@@ -557,7 +588,7 @@ export const createApp = (db) => {
         },
       }),
     );
-    app.get(/^(?!\/(api|socket\.io)(\/|$)).*/, (req, res, next) => {
+    app.get(/^(?!\/(api|mcp|socket\.io)(\/|$)).*/, (req, res, next) => {
       if (!fs.existsSync(indexHtml)) {
         return next();
       }

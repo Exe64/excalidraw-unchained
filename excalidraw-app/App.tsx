@@ -44,7 +44,7 @@ import {
   share,
   youtubeIcon,
 } from "@excalidraw/excalidraw/components/icons";
-import { isElementLink } from "@excalidraw/element";
+import { getNonDeletedElements, isElementLink } from "@excalidraw/element";
 import {
   restoreAppState,
   restoreElements,
@@ -67,6 +67,7 @@ import type {
 import type {
   AppState,
   ExcalidrawImperativeAPI,
+  BinaryFileData,
   BinaryFiles,
   ExcalidrawInitialDataState,
   UIAppState,
@@ -83,7 +84,11 @@ import {
   useAtomWithInitialValue,
   appJotaiStore,
 } from "./app-jotai";
-import { STORAGE_PREFIXES, SYNC_BROWSER_TABS_TIMEOUT } from "./app_constants";
+import {
+  DRAWING_SYNC_INTERVAL,
+  STORAGE_PREFIXES,
+  SYNC_BROWSER_TABS_TIMEOUT,
+} from "./app_constants";
 import Collab, {
   collabAPIAtom,
   isCollaboratingAtom,
@@ -98,6 +103,10 @@ import {
   drawingsDialogOpenAtom,
 } from "./components/DrawingsDialog";
 import { TopErrorBoundary } from "./components/TopErrorBoundary";
+import {
+  ApiAccessDialog,
+  apiAccessDialogOpenAtom,
+} from "./components/ApiAccessDialog";
 
 import {
   exportToBackend,
@@ -108,6 +117,7 @@ import {
 } from "./data";
 
 import { DrawingsAPI } from "./data/drawings";
+import { convertPendingOps } from "./data/pendingOps";
 import { updateStaleImageStatuses } from "./data/FileManager";
 import { FileStatusStore } from "./data/fileStatusStore";
 
@@ -203,6 +213,38 @@ const restoreDrawingScene = (drawing: Drawing) => {
   return { elements, appState };
 };
 
+/**
+ * Restores a drawing and converts the changes requested through the API
+ * (e.g. by an AI assistant over MCP) that are waiting to be applied.
+ */
+const prepareDrawingScene = async (drawing: Drawing) => {
+  const scene = restoreDrawingScene(drawing);
+  const ops = ServerData.getOpsToApply(drawing);
+  if (!ops.length) {
+    return { scene, files: [], appliedOps: [] };
+  }
+  const converted = await convertPendingOps(ops, scene.elements);
+  if (converted.errors.length) {
+    console.warn("couldn't apply some changes", converted.errors);
+  }
+  return {
+    scene: {
+      ...scene,
+      elements: restoreElements(
+        [...scene.elements, ...converted.elements],
+        null,
+        { repairBindings: true },
+      ),
+    },
+    files: converted.files,
+    appliedOps: ops.map((op) => op.id),
+    errors: converted.errors,
+  };
+};
+
+const toBinaryFiles = (files: readonly BinaryFileData[]) =>
+  Object.fromEntries(files.map((file) => [file.id, file])) as BinaryFiles;
+
 /** imports a scene shared through a `#json=` or `#url=` link */
 const importExternalScene = async (
   jsonBackendMatch: RegExpMatchArray | null,
@@ -237,7 +279,15 @@ const initializeScene = async (opts: {
   await ServerData.flushSave();
 
   const drawing = await ServerData.fetchInitialDrawing();
-  const drawingScene = restoreDrawingScene(drawing);
+  const prepared = await prepareDrawingScene(drawing);
+  const drawingScene = {
+    ...prepared.scene,
+    files: toBinaryFiles(prepared.files),
+    // a drawing created through the API (e.g. by an AI assistant) is opened
+    // for the first time: show its content
+    scrollToContent: !drawing.elements.length && !!prepared.appliedOps.length,
+  };
+  const { appliedOps } = prepared;
 
   if (jsonBackendMatch || externalUrlMatch) {
     let imported: ImportedDataState | null = null;
@@ -245,7 +295,7 @@ const initializeScene = async (opts: {
       imported = await importExternalScene(jsonBackendMatch, externalUrlMatch);
     } catch (error: any) {
       console.error(error);
-      ServerData.setCurrentDrawing(drawing, drawingScene);
+      ServerData.setCurrentDrawing(drawing, drawingScene, { appliedOps });
       return {
         scene: {
           ...drawingScene,
@@ -296,7 +346,7 @@ const initializeScene = async (opts: {
     }
   }
 
-  ServerData.setCurrentDrawing(drawing, drawingScene);
+  ServerData.setCurrentDrawing(drawing, drawingScene, { appliedOps });
 
   if (roomLinkData && opts.collabAPI) {
     const { excalidrawAPI } = opts;
@@ -419,6 +469,7 @@ const ExcalidrawWrapper = () => {
   }, [excalidrawAPI]);
 
   const [, setDrawingsDialogOpen] = useAtom(drawingsDialogOpenAtom);
+  const [, setApiAccessDialogOpen] = useAtom(apiAccessDialogOpenAtom);
 
   const [, forceRefresh] = useState(false);
 
@@ -531,12 +582,17 @@ const ExcalidrawWrapper = () => {
   // ---------------------------------------------------------------------------
 
   const loadDrawingIntoEditor = useCallback(
-    (drawing: Drawing, opts?: { keepViewport?: boolean }) => {
+    async (drawing: Drawing, opts?: { keepViewport?: boolean }) => {
       if (!excalidrawAPI) {
         return;
       }
-      const scene = restoreDrawingScene(drawing);
-      ServerData.setCurrentDrawing(drawing, scene);
+      const { scene, files, appliedOps, errors } = await prepareDrawingScene(
+        drawing,
+      );
+      ServerData.setCurrentDrawing(drawing, scene, { appliedOps });
+      if (files.length) {
+        excalidrawAPI.addFiles(files);
+      }
       if (opts?.keepViewport) {
         excalidrawAPI.updateScene({
           elements: scene.elements,
@@ -554,8 +610,25 @@ const ExcalidrawWrapper = () => {
           captureUpdate: CaptureUpdateAction.NEVER,
         });
         excalidrawAPI.history.clear();
+        if (!drawing.elements.length && appliedOps.length) {
+          // created through the API (e.g. by an AI assistant): show it
+          excalidrawAPI.setViewport({
+            target: getNonDeletedElements(scene.elements),
+            fit: "scale-down",
+            animation: false,
+          });
+        }
       }
       loadImages({ scene, isExternalScene: false }, /* isInitialLoad */ true);
+      if (appliedOps.length) {
+        // acknowledge the converted operations, even if nothing changed
+        ServerData.requestSave();
+        excalidrawAPI.setToast({
+          message: errors?.length
+            ? tu("drawings.opsFailed", { error: errors[0] })
+            : tu("drawings.opsApplied"),
+        });
+      }
     },
     [excalidrawAPI, loadImages],
   );
@@ -581,7 +654,7 @@ const ExcalidrawWrapper = () => {
       const drawing = drawingId
         ? await DrawingsAPI.get(drawingId)
         : await DrawingsAPI.create();
-      loadDrawingIntoEditor(drawing);
+      await loadDrawingIntoEditor(drawing);
     },
     [excalidrawAPI, leaveCollaboration, loadDrawingIntoEditor],
   );
@@ -593,7 +666,7 @@ const ExcalidrawWrapper = () => {
     // the current drawing was deleted: discard its pending changes
     ServerData.drawingId = null;
     const [mostRecent] = await DrawingsAPI.list();
-    loadDrawingIntoEditor(
+    await loadDrawingIntoEditor(
       mostRecent
         ? await DrawingsAPI.get(mostRecent.id)
         : await DrawingsAPI.create(),
@@ -670,22 +743,33 @@ const ExcalidrawWrapper = () => {
       }
     };
 
-    // pick up changes made to the current drawing from other tabs/devices
-    const syncData = debounce(() => {
-      if (isTestEnv()) {
+    const canSync = () =>
+      !isTestEnv() &&
+      !document.hidden &&
+      ((collabAPI && !collabAPI.isCollaborating()) || isCollabDisabled);
+
+    // pick up changes made to the current drawing elsewhere: other tabs or
+    // devices, or an AI assistant through the API
+    const syncDrawing = () => {
+      if (!canSync()) {
         return;
       }
-      if (
-        !document.hidden &&
-        ((collabAPI && !collabAPI.isCollaborating()) || isCollabDisabled)
-      ) {
-        ServerData.fetchIfChangedRemotely()
-          .then((drawing) => {
-            if (drawing) {
-              loadDrawingIntoEditor(drawing, { keepViewport: true });
-            }
-          })
-          .catch((error) => console.warn(error));
+      ServerData.fetchIfChangedRemotely()
+        .then((drawing) => {
+          if (drawing) {
+            return loadDrawingIntoEditor(drawing, { keepViewport: true });
+          }
+        })
+        .catch((error) => console.warn(error));
+    };
+    const syncDrawingInterval = window.setInterval(
+      syncDrawing,
+      DRAWING_SYNC_INTERVAL,
+    );
+
+    const syncData = debounce(() => {
+      if (canSync()) {
+        syncDrawing();
         LibraryServerAdapter.load()
           .then((data) => {
             if (data) {
@@ -721,6 +805,7 @@ const ExcalidrawWrapper = () => {
     window.addEventListener(EVENT.FOCUS, visibilityChange, false);
     return () => {
       window.clearTimeout(retryTimer);
+      window.clearInterval(syncDrawingInterval);
       window.removeEventListener(EVENT.HASHCHANGE, onHashChange, false);
       window.removeEventListener(EVENT.UNLOAD, onUnload, false);
       window.removeEventListener(EVENT.BLUR, visibilityChange, false);
@@ -1029,6 +1114,7 @@ const ExcalidrawWrapper = () => {
           onDrawingsDialogOpen={() => setDrawingsDialogOpen(true)}
           onNewDrawing={() => openDrawing(null).catch(onDrawingError)}
           onLogout={onLogout}
+          onApiAccessDialogOpen={() => setApiAccessDialogOpen(true)}
         />
         <AppWelcomeScreen
           onCollabDialogOpen={onCollabDialogOpen}
@@ -1039,6 +1125,7 @@ const ExcalidrawWrapper = () => {
           <OverwriteConfirmDialog.Actions.ExportToImage />
           <OverwriteConfirmDialog.Actions.SaveToDisk />
         </OverwriteConfirmDialog>
+        <ApiAccessDialog />
         <DrawingsDialog
           onOpenDrawing={(id) => openDrawing(id)}
           onNewDrawing={() => openDrawing(null)}

@@ -1,5 +1,8 @@
 // time constants (ms)
 export const SAVE_TO_SERVER_TIMEOUT = 1000;
+// how often to check for changes made to the open drawing elsewhere (other
+// devices, AI assistants through the API)
+export const DRAWING_SYNC_INTERVAL = 4000;
 export const INITIAL_SCENE_UPDATE_TIMEOUT = 5000;
 export const FILE_UPLOAD_TIMEOUT = 300;
 export const LOAD_IMAGES_TIMEOUT = 500;

@@ -115,6 +115,10 @@ export default defineConfig(({ mode }) => {
           target: envVars.VITE_APP_DEV_BACKEND_URL || "http://localhost:3005",
           changeOrigin: false,
         },
+        "/mcp": {
+          target: envVars.VITE_APP_DEV_BACKEND_URL || "http://localhost:3005",
+          changeOrigin: false,
+        },
         "/socket.io": {
           target: envVars.VITE_APP_DEV_BACKEND_URL || "http://localhost:3005",
           ws: true,
@@ -284,7 +288,11 @@ export default defineConfig(({ mode }) => {
             "**/CodeMirrorEditor-*.js",
           ],
           // the server handles these, never serve the app shell for them
-          navigateFallbackDenylist: [/^\/api\//, /^\/socket\.io\//],
+          navigateFallbackDenylist: [
+            /^\/api\//,
+            /^\/mcp(\/|$)/,
+            /^\/socket\.io\//,
+          ],
           // mermaid chunks are excluded here rather than via `globIgnores`
           // as their file names are arbitrary
           manifestTransforms: [

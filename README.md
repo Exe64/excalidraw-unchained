@@ -6,7 +6,9 @@ Fork auto-hébergé d'[Excalidraw](https://github.com/excalidraw/excalidraw) : *
 - 🗄️ **les dessins sont hébergés et stockés côté serveur** (SQLite), et non plus dans le navigateur : on les retrouve depuis n'importe quel appareil ;
 - 📁 **plusieurs dessins par utilisateur** (« Mes dessins » : créer, ouvrir, rechercher, renommer, dupliquer, supprimer) ;
 - 🤝 la **collaboration en direct** et les **liens de partage** passent par ce même serveur (plus de Firebase ni de serveurs excalidraw.com) et restent **chiffrés de bout en bout** ;
-- 📚 la **bibliothèque** personnelle est aussi stockée sur le serveur.
+- 📚 la **bibliothèque** personnelle est aussi stockée sur le serveur ;
+- 🤖 **votre assistant IA peut dessiner** : un serveur [MCP](https://modelcontextprotocol.io) intégré permet à Claude (ou tout client MCP) de lire, créer et modifier vos dessins ;
+- ✨ les fonctions IA de l'éditeur (« Texte vers diagramme », « Wireframe vers code ») utilisent **le fournisseur de votre choix** : Claude, OpenAI, Mistral, Ollama…
 
 Le README d'origine est conservé dans [README.upstream.md](./README.upstream.md).
 
@@ -52,6 +54,46 @@ Le mot de passe peut aussi être passé via la variable `PASSWORD` (scripts).
 | `TRUST_PROXY` | `loopback` | Valeur de [`trust proxy`](https://expressjs.com/en/guide/behind-proxies.html) d'Express |
 | `MAX_BODY_SIZE` | `50mb` | Taille maximale d'une requête (dessin, image) |
 | `ROOM_TTL_DAYS` | `90` | Purge des salles de collaboration inactives (`0` = jamais) |
+| `PUBLIC_URL` | URL de la requête | URL publique de l'instance (liens donnés aux assistants IA) |
+| `AI_PROVIDER` | – (IA désactivée) | `anthropic` (Claude) ou `openai` (toute API compatible OpenAI : OpenAI, Mistral, Ollama, LM Studio, vLLM…) |
+| `AI_API_KEY` | – | Clé du fournisseur (pour Claude, `ANTHROPIC_API_KEY` est aussi lue) |
+| `AI_MODEL` | `claude-opus-5-5` pour Claude | Modèle à utiliser (obligatoire pour `openai`) |
+| `AI_BASE_URL` | `https://api.openai.com/v1` pour `openai` | URL de l'API, ex. `https://api.mistral.ai/v1`, `http://ollama:11434/v1` |
+| `AI_EFFORT` | `medium` | Claude uniquement : `low`, `medium`, `high`, `xhigh`, `max` |
+| `AI_REQUESTS_PER_DAY` | `200` | Quota de requêtes IA par utilisateur et par jour (`0` = illimité) |
+
+## Laisser Claude dessiner (serveur MCP)
+
+L'instance expose un serveur MCP sur `/mcp`. Chaque utilisateur crée un **jeton d'accès** depuis le menu ☰ > **Accès API (MCP)** ; la fenêtre affiche aussi la configuration prête à copier. Un jeton donne accès aux dessins de son propriétaire uniquement, et se révoque à tout moment.
+
+- **Claude Code** :
+  ```bash
+  claude mcp add --transport http excalidraw https://draw.example.com/mcp \
+    --header "Authorization: Bearer exu_…"
+  ```
+- **App Claude / claude.ai** : Paramètres > Connecteurs > _Ajouter un connecteur personnalisé_, avec l'URL `https://draw.example.com/mcp/exu_…` (le jeton est dans l'URL, ces clients ne permettant pas d'ajouter un en-tête). L'instance doit être joignable depuis Internet en HTTPS.
+- **Autres clients MCP** : transport « Streamable HTTP » sur `/mcp`, en-tête `Authorization: Bearer <jeton>`.
+
+Outils proposés à l'assistant : `list_drawings`, `get_drawing`, `create_drawing`, `add_to_drawing`, `update_elements`, `remove_elements`, `rename_drawing`. Claude décrit les formes dans un format simple (rectangles, ellipses, losanges, textes, flèches reliées aux formes, cadres) ou en **Mermaid** ; l'éditeur les convertit en éléments Excalidraw modifiables à l'ouverture du dessin. Si le dessin est déjà ouvert, les modifications apparaissent en quelques secondes.
+
+Exemple : _« Dessine dans Excalidraw l'architecture de mon cluster Nutanix 3 nœuds avec Prism Central »_, puis ouvrez le lien que Claude vous donne.
+
+Les mêmes jetons fonctionnent avec l'API REST (`/api/drawings…`) pour vos scripts.
+
+## Fonctions IA de l'éditeur
+
+« Texte vers diagramme » et « Wireframe vers code » passent par le serveur, qui interroge le fournisseur configuré (`AI_PROVIDER`, voir la configuration) : la clé d'API reste côté serveur et rien n'est envoyé aux services d'excalidraw.com. Exemples :
+
+```bash
+# Claude
+AI_PROVIDER=anthropic AI_API_KEY=sk-ant-…
+# Mistral
+AI_PROVIDER=openai AI_BASE_URL=https://api.mistral.ai/v1 AI_MODEL=mistral-large-latest AI_API_KEY=…
+# Ollama, en local
+AI_PROVIDER=openai AI_BASE_URL=http://ollama:11434/v1 AI_MODEL=llama3.1
+```
+
+« Wireframe vers code » nécessite un modèle qui accepte les images. Sans `AI_PROVIDER`, ces fonctions affichent un message indiquant qu'elles ne sont pas configurées.
 
 ## Développement
 
@@ -83,11 +125,15 @@ excalidraw-app/          l'app web (fork d'excalidraw.com)
   data/ServerData.ts     sauvegarde auto du dessin courant, images, bibliothèque
   data/serverStorage.ts  salles de collaboration & fichiers chiffrés (remplace Firebase)
   data/drawings.ts       client de l'API des dessins
+  data/pendingOps.ts     conversion des modifications demandées via l'API (MCP)
   components/DrawingsDialog.tsx  « Mes dessins »
 packages/                l'éditeur Excalidraw, inchangé
 server/                  Node.js + Express + Socket.IO + SQLite
   src/app.js             API REST (auth, dessins, fichiers, bibliothèque, salles, liens)
   src/collab.js          relais temps réel (protocole d'excalidraw-room), authentifié
+  src/mcp.js             serveur MCP (assistants IA)
+  src/ai.js              fonctions IA de l'éditeur (Claude ou API compatible OpenAI)
+  src/tokens.js          jetons d'accès personnels
   src/cli.js             gestion des utilisateurs
 ```
 
@@ -98,7 +144,7 @@ server/                  Node.js + Express + Socket.IO + SQLite
 
 ## Différences avec excalidraw.com
 
-Retirés car liés aux services commerciaux d'excalidraw.com : promotions et export vers Excalidraw+, analytics, Sentry, polices chargées depuis le CDN d'excalidraw.com (elles sont désormais servies par le serveur). Les intégrations publiques restent disponibles et configurables : bibliothèques publiques (`VITE_APP_LIBRARY_URL`) et backend IA « texte vers diagramme » (`VITE_APP_AI_BACKEND`).
+Retirés car liés aux services commerciaux d'excalidraw.com : promotions et export vers Excalidraw+, analytics, Sentry, polices chargées depuis le CDN d'excalidraw.com (elles sont désormais servies par le serveur). Les fonctions IA passent par votre serveur et le fournisseur que vous configurez. Seul le catalogue public de bibliothèques (`VITE_APP_LIBRARY_URL`) reste un service externe.
 
 ## Suivre les évolutions d'Excalidraw
 

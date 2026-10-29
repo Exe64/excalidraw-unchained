@@ -11,6 +11,17 @@ const bool = (value, fallback = false) => {
   return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
 };
 
+const AI_PROVIDERS = {
+  anthropic: "anthropic",
+  claude: "anthropic",
+  openai: "openai",
+  "openai-compatible": "openai",
+  mistral: "openai",
+  ollama: "openai",
+};
+
+const aiProvider = AI_PROVIDERS[(process.env.AI_PROVIDER || "").toLowerCase()];
+
 const defaultStaticDir = path.resolve(__dirname, "../../excalidraw-app/build");
 
 export const config = {
@@ -27,6 +38,9 @@ export const config = {
     ? defaultStaticDir
     : null,
   allowRegistration: bool(process.env.ALLOW_REGISTRATION, false),
+  /** public URL of the instance (e.g. https://draw.example.com), used in the
+   * drawing links given to AI assistants. Defaults to the request's host. */
+  publicUrl: (process.env.PUBLIC_URL || "").replace(/\/+$/, ""),
   adminUsername: process.env.ADMIN_USERNAME || "",
   adminPassword: process.env.ADMIN_PASSWORD || "",
   sessionTtlMs:
@@ -39,6 +53,27 @@ export const config = {
   /** encrypted collab scenes / share links not touched for this long are
    * deleted (0 disables the cleanup) */
   roomTtlMs: Number(process.env.ROOM_TTL_DAYS ?? 90) * 24 * 60 * 60 * 1000,
+  /** backend of the editor's AI features ("text to diagram", "wireframe to
+   * code"). Disabled unless AI_PROVIDER is set. */
+  ai: {
+    provider: aiProvider || "",
+    apiKey:
+      process.env.AI_API_KEY ||
+      (aiProvider === "openai" ? process.env.OPENAI_API_KEY : "") ||
+      "",
+    model:
+      process.env.AI_MODEL ||
+      (aiProvider === "anthropic" ? "claude-opus-5-5" : ""),
+    baseUrl: (
+      process.env.AI_BASE_URL ||
+      (aiProvider === "openai" ? "https://api.openai.com/v1" : "")
+    ).replace(/\/+$/, ""),
+    /** Claude only: low | medium | high | xhigh | max */
+    effort: process.env.AI_EFFORT || "medium",
+    /** per user and per day (the editor shows the remaining count), 0 =
+     * unlimited */
+    requestsPerDay: Number(process.env.AI_REQUESTS_PER_DAY ?? 200),
+  },
 };
 
 export const COOKIE_NAME = "excalidraw_session";

@@ -79,7 +79,11 @@ export const installFakeServer = () => {
         });
       }
       if (method === "PUT") {
+        const applied = new Set(body.appliedOps || []);
         Object.assign(drawing, {
+          pendingOps: (drawing.pendingOps || []).filter(
+            (op: any) => !applied.has(op.id),
+          ),
           name: body.name || drawing.name,
           elements: body.elements,
           appState: body.appState,
