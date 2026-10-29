@@ -1,5 +1,5 @@
 // time constants (ms)
-export const SAVE_TO_LOCAL_STORAGE_TIMEOUT = 300;
+export const SAVE_TO_SERVER_TIMEOUT = 1000;
 export const INITIAL_SCENE_UPDATE_TIMEOUT = 5000;
 export const FILE_UPLOAD_TIMEOUT = 300;
 export const LOAD_IMAGES_TIMEOUT = 500;
@@ -29,33 +29,22 @@ export enum WS_SUBTYPES {
   USER_VISIBLE_SCENE_BOUNDS = "USER_VISIBLE_SCENE_BOUNDS",
 }
 
-export const FIREBASE_STORAGE_PREFIXES = {
-  shareLinkFiles: `/files/shareLinks`,
-  collabFiles: `/files/rooms`,
+export const STORAGE_PREFIXES = {
+  shareLinkFiles: `shareLinks`,
+  collabFiles: `rooms`,
 };
 
 export const ROOM_ID_BYTES = 10;
 
 export const STORAGE_KEYS = {
+  // not used by the app anymore (drawings are stored on the server), kept for
+  // the test utils of @excalidraw/excalidraw
   LOCAL_STORAGE_ELEMENTS: "excalidraw",
   LOCAL_STORAGE_APP_STATE: "excalidraw-state",
   LOCAL_STORAGE_COLLAB: "excalidraw-collab",
   LOCAL_STORAGE_THEME: "excalidraw-theme",
   LOCAL_STORAGE_DEBUG: "excalidraw-debug",
-  VERSION_DATA_STATE: "version-dataState",
-  VERSION_FILES: "version-files",
+  LAST_OPENED_DRAWING: "excalidraw-last-drawing",
 
-  IDB_LIBRARY: "excalidraw-library",
   IDB_TTD_CHATS: "excalidraw-ttd-chats",
-
-  // do not use apart from migrations
-  __LEGACY_LOCAL_STORAGE_LIBRARY: "excalidraw-library",
 } as const;
-
-export const COOKIES = {
-  AUTH_STATE_COOKIE: "excplus-auth",
-} as const;
-
-export const isExcalidrawPlusSignedUser = document.cookie.includes(
-  COOKIES.AUTH_STATE_COOKIE,
-);

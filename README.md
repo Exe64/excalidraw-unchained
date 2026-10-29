@@ -1,124 +1,116 @@
-<a href="https://excalidraw.com/" target="_blank" rel="noopener">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" alt="Excalidraw" srcset="https://excalidraw.nyc3.cdn.digitaloceanspaces.com/github/excalidraw_github_cover_2_dark.png" />
-    <img alt="Excalidraw" src="https://excalidraw.nyc3.cdn.digitaloceanspaces.com/github/excalidraw_github_cover_2.png" />
-  </picture>
-</a>
+# Excalidraw Unchained
 
-<h4 align="center">
-  <a href="https://excalidraw.com">Excalidraw Editor</a> |
-  <a href="https://plus.excalidraw.com/blog">Blog</a> |
-  <a href="https://docs.excalidraw.com">Documentation</a> |
-  <a href="https://plus.excalidraw.com">Excalidraw+</a>
-</h4>
+Fork auto-hébergé d'[Excalidraw](https://github.com/excalidraw/excalidraw) : **même éditeur, même design, mêmes fonctionnalités**, mais :
 
-<div align="center">
-  <h2>
-    An open source virtual hand-drawn style whiteboard. </br>
-    Collaborative and end-to-end encrypted. </br>
-  <br />
-  </h2>
-</div>
+- 🔐 **accès réservé aux utilisateurs authentifiés** (nom d'utilisateur + mot de passe) ;
+- 🗄️ **les dessins sont hébergés et stockés côté serveur** (SQLite), et non plus dans le navigateur : on les retrouve depuis n'importe quel appareil ;
+- 📁 **plusieurs dessins par utilisateur** (« Mes dessins » : créer, ouvrir, rechercher, renommer, dupliquer, supprimer) ;
+- 🤝 la **collaboration en direct** et les **liens de partage** passent par ce même serveur (plus de Firebase ni de serveurs excalidraw.com) et restent **chiffrés de bout en bout** ;
+- 📚 la **bibliothèque** personnelle est aussi stockée sur le serveur.
 
-<br />
-<p align="center">
-  <a href="https://github.com/excalidraw/excalidraw/blob/master/LICENSE">
-    <img alt="Excalidraw is released under the MIT license." src="https://img.shields.io/badge/license-MIT-blue.svg"  /></a>
-  <a href="https://www.npmjs.com/package/@excalidraw/excalidraw">
-    <img alt="npm downloads/month" src="https://img.shields.io/npm/dm/@excalidraw/excalidraw"  /></a>
-  <a href="https://docs.excalidraw.com/docs/introduction/contributing">
-    <img alt="PRs welcome!" src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat"  /></a>
-  <a href="https://discord.gg/UexuTaE">
-    <img alt="Chat on Discord" src="https://img.shields.io/discord/723672430744174682?color=738ad6&label=Chat%20on%20Discord&logo=discord&logoColor=ffffff&widget=false"/></a>
-  <a href="https://deepwiki.com/excalidraw/excalidraw">
-    <img alt="Ask DeepWiki" src="https://deepwiki.com/badge.svg" /></a>
-  <a href="https://twitter.com/excalidraw">
-    <img alt="Follow Excalidraw on Twitter" src="https://img.shields.io/twitter/follow/excalidraw.svg?label=follow+@excalidraw&style=social&logo=twitter"/></a>
-</p>
+Le README d'origine est conservé dans [README.upstream.md](./README.upstream.md).
 
-<div align="center">
-  <figure>
-    <a href="https://excalidraw.com" target="_blank" rel="noopener">
-      <img src="https://excalidraw.nyc3.cdn.digitaloceanspaces.com/github%2Fproduct_showcase.png" alt="Product showcase" />
-    </a>
-    <figcaption>
-      <p align="center">
-        Create beautiful hand-drawn like diagrams, wireframes, or whatever you like.
-      </p>
-    </figcaption>
-  </figure>
-</div>
-
-## Features
-
-The Excalidraw editor (npm package) supports:
-
-- 💯&nbsp;Free & open-source.
-- 🎨&nbsp;Infinite, canvas-based whiteboard.
-- ✍️&nbsp;Hand-drawn like style.
-- 🌓&nbsp;Dark mode.
-- 🏗️&nbsp;Customizable.
-- 📷&nbsp;Image support.
-- 😀&nbsp;Shape libraries support.
-- 🌐&nbsp;Localization (i18n) support.
-- 🖼️&nbsp;Export to PNG, SVG & clipboard.
-- 💾&nbsp;Open format - export drawings as an `.excalidraw` json file.
-- ⚒️&nbsp;Wide range of tools - rectangle, circle, diamond, arrow, line, free-draw, eraser...
-- ➡️&nbsp;Arrow-binding & labeled arrows.
-- 🔙&nbsp;Undo / Redo.
-- 🔍&nbsp;Zoom and panning support.
-
-## Excalidraw.com
-
-The app hosted at [excalidraw.com](https://excalidraw.com) is a minimal showcase of what you can build with Excalidraw. Its [source code](https://github.com/excalidraw/excalidraw/tree/master/excalidraw-app) is part of this repository as well, and the app features:
-
-- 📡&nbsp;PWA support (works offline).
-- 🤼&nbsp;Real-time collaboration.
-- 🔒&nbsp;End-to-end encryption.
-- 💾&nbsp;Local-first support (autosaves to the browser).
-- 🔗&nbsp;Shareable links (export to a readonly link you can share with others).
-
-We'll be adding these features as drop-in plugins for the npm package in the future.
-
-## Quick start
-
-**Note:** following instructions are for installing the Excalidraw [npm package](https://www.npmjs.com/package/@excalidraw/excalidraw) when integrating Excalidraw into your own app. To run the repository locally for development, please refer to our [Development Guide](https://docs.excalidraw.com/docs/introduction/development).
-
-Use `npm` or `yarn` to install the package.
+## Démarrage rapide (Docker)
 
 ```bash
-npm install react react-dom @excalidraw/excalidraw
-# or
-yarn add react react-dom @excalidraw/excalidraw
+ADMIN_PASSWORD='un-mot-de-passe-solide' docker compose up -d --build
 ```
 
-Check out our [documentation](https://docs.excalidraw.com/docs/@excalidraw/excalidraw/installation) for more details!
+L'application est servie sur <http://localhost:3000>. Au premier démarrage, le compte `admin` (ou `ADMIN_USERNAME`) est créé avec `ADMIN_PASSWORD`. Les données sont conservées dans le volume `excalidraw-data` (`/data/excalidraw.sqlite`).
 
-## Contributing
+En production, placez le conteneur derrière un reverse proxy HTTPS (Caddy, Traefik, nginx…) qui transmet aussi les WebSockets (`/socket.io`), et définissez `TRUST_PROXY` pour que le cookie de session reçoive le flag `Secure`.
 
-- Missing something or found a bug? [Report here](https://github.com/excalidraw/excalidraw/issues).
-- Want to contribute? Check out our [contribution guide](https://docs.excalidraw.com/docs/introduction/contributing) or let us know on [Discord](https://discord.gg/UexuTaE).
-- Want to help with translations? See the [translation guide](https://docs.excalidraw.com/docs/introduction/contributing#translating).
+## Gestion des utilisateurs
 
-## Integrations
+Par défaut, l'inscription depuis l'écran de connexion est désactivée. Les comptes se gèrent en ligne de commande :
 
-- [VScode extension](https://marketplace.visualstudio.com/items?itemName=pomdtr.excalidraw-editor)
-- [npm package](https://www.npmjs.com/package/@excalidraw/excalidraw)
+```bash
+# dans le conteneur
+docker compose exec excalidraw node src/cli.js add alice          # mot de passe demandé
+docker compose exec excalidraw node src/cli.js add bob --admin
+docker compose exec excalidraw node src/cli.js passwd alice        # déconnecte ses sessions
+docker compose exec excalidraw node src/cli.js delete alice        # supprime aussi ses dessins
+docker compose exec excalidraw node src/cli.js list
 
-## Who's integrating Excalidraw
+# hors Docker
+yarn --cwd server users add alice
+```
 
-[Google Cloud](https://googlecloudcheatsheet.withgoogle.com/architecture) • [Meta](https://meta.com/) • [CodeSandbox](https://codesandbox.io/) • [Obsidian Excalidraw](https://github.com/zsviczian/obsidian-excalidraw-plugin) • [Replit](https://replit.com/) • [Slite](https://slite.com/) • [Notion](https://notion.so/) • [HackerRank](https://www.hackerrank.com/) • and many others
+Le mot de passe peut aussi être passé via la variable `PASSWORD` (scripts).
 
-## Sponsors & support
+## Configuration du serveur
 
-If you like the project, you can become a sponsor at [Open Collective](https://opencollective.com/excalidraw) or use [Excalidraw+](https://plus.excalidraw.com/).
+| Variable | Défaut | Description |
+| --- | --- | --- |
+| `PORT` / `HOST` | `3005` / `0.0.0.0` | Adresse d'écoute (`80` dans l'image Docker) |
+| `DATA_DIR` | `server/data` | Dossier de la base SQLite (`/data` dans l'image Docker) |
+| `STATIC_DIR` | `excalidraw-app/build` s'il existe | Frontend compilé à servir |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | – | Compte créé au démarrage si aucun utilisateur n'existe |
+| `ALLOW_REGISTRATION` | `false` | Autorise la création de compte depuis l'écran de connexion |
+| `SESSION_TTL_DAYS` | `30` | Durée de validité des sessions |
+| `COOKIE_SECURE` | `auto` | `auto` (selon HTTPS), `true` ou `false` |
+| `TRUST_PROXY` | `loopback` | Valeur de [`trust proxy`](https://expressjs.com/en/guide/behind-proxies.html) d'Express |
+| `MAX_BODY_SIZE` | `50mb` | Taille maximale d'une requête (dessin, image) |
+| `ROOM_TTL_DAYS` | `90` | Purge des salles de collaboration inactives (`0` = jamais) |
 
-## Thank you for supporting Excalidraw
+## Développement
 
-[<img src="https://opencollective.com/excalidraw/tiers/sponsors/0/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/0/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/1/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/1/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/2/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/2/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/3/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/3/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/4/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/4/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/5/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/5/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/6/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/6/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/7/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/7/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/8/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/8/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/9/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/9/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/10/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/10/website)
+Prérequis : Node.js ≥ 22.13 (le serveur utilise `node:sqlite`) et Yarn 1.
 
-<a href="https://opencollective.com/excalidraw#category-CONTRIBUTE" target="_blank"><img src="https://opencollective.com/excalidraw/tiers/backers.svg?avatarHeight=32"/></a>
+```bash
+yarn install
 
-Last but not least, we're thankful to these companies for offering their services for free:
+# terminal 1 : le serveur (API + collaboration) sur :3005
+ADMIN_USERNAME=admin ADMIN_PASSWORD=admin1234 yarn dev:server
 
-[![Vercel](./.github/assets/vercel.svg)](https://vercel.com) [![Sentry](./.github/assets/sentry.svg)](https://sentry.io) [![Crowdin](./.github/assets/crowdin.svg)](https://crowdin.com)
+# terminal 2 : l'app (Vite) sur :3001, qui proxifie /api et /socket.io vers :3005
+yarn start
+```
+
+Tests et vérifications :
+
+```bash
+yarn test:server       # API, authentification, collaboration (node:test)
+yarn test:app          # tests de l'app et de l'éditeur (vitest)
+yarn test:typecheck && yarn test:code && yarn test:other
+```
+
+## Architecture
+
+```
+excalidraw-app/          l'app web (fork d'excalidraw.com)
+  auth/                  écran de connexion, garde d'authentification
+  data/ServerData.ts     sauvegarde auto du dessin courant, images, bibliothèque
+  data/serverStorage.ts  salles de collaboration & fichiers chiffrés (remplace Firebase)
+  data/drawings.ts       client de l'API des dessins
+  components/DrawingsDialog.tsx  « Mes dessins »
+packages/                l'éditeur Excalidraw, inchangé
+server/                  Node.js + Express + Socket.IO + SQLite
+  src/app.js             API REST (auth, dessins, fichiers, bibliothèque, salles, liens)
+  src/collab.js          relais temps réel (protocole d'excalidraw-room), authentifié
+  src/cli.js             gestion des utilisateurs
+```
+
+- **Sauvegarde** : le dessin ouvert est enregistré automatiquement (1 s après la dernière modification, et à la fermeture de l'onglet). Chaque dessin a un numéro de version : si le même dessin est modifié depuis un autre onglet ou appareil, les modifications sont fusionnées élément par élément (même algorithme que la collaboration) au lieu de s'écraser.
+- **Images** : stockées par utilisateur, identifiées par l'empreinte de leur contenu.
+- **Collaboration** : les scènes et images des salles sont chiffrées dans le navigateur ; la clé reste dans l'ancre (`#room=…,clé`) et n'est jamais envoyée au serveur. Seuls les utilisateurs connectés peuvent rejoindre une salle. En arrêtant une session, le résultat est enregistré dans le dessin d'origine (pour celui qui l'a lancée) ou dans une copie (pour ceux qui l'ont rejointe).
+- **Liens de partage** (« Exporter vers un lien ») : chiffrés de bout en bout ; à l'ouverture, le dessin partagé est ajouté aux dessins de l'utilisateur sans écraser le dessin courant.
+
+## Différences avec excalidraw.com
+
+Retirés car liés aux services commerciaux d'excalidraw.com : promotions et export vers Excalidraw+, analytics, Sentry, polices chargées depuis le CDN d'excalidraw.com (elles sont désormais servies par le serveur). Les intégrations publiques restent disponibles et configurables : bibliothèques publiques (`VITE_APP_LIBRARY_URL`) et backend IA « texte vers diagramme » (`VITE_APP_AI_BACKEND`).
+
+## Suivre les évolutions d'Excalidraw
+
+Le dépôt conserve l'historique d'Excalidraw ; pour récupérer les nouveautés :
+
+```bash
+git remote add upstream https://github.com/excalidraw/excalidraw.git
+git fetch upstream && git merge upstream/master
+```
+
+Les modifications sont concentrées dans `excalidraw-app/` et `server/` ; le paquet `packages/excalidraw` (l'éditeur) n'est pas modifié, ce qui limite les conflits.
+
+## Licence
+
+MIT, comme Excalidraw — voir [LICENSE](./LICENSE).

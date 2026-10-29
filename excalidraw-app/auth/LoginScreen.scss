@@ -1,0 +1,153 @@
+.excalidraw.unchained-auth {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  box-sizing: border-box;
+  overflow: auto;
+  background-color: var(--default-bg-color);
+  // the hand-drawn dotted background of the welcome screen
+  background-image: radial-gradient(
+    var(--color-gray-30, #ced4da) 1px,
+    transparent 1px
+  );
+  background-size: 24px 24px;
+  user-select: auto;
+
+  &.theme--dark {
+    background-image: radial-gradient(
+      var(--color-gray-80, #343a40) 1px,
+      transparent 1px
+    );
+  }
+
+  &.unchained-auth--overlay {
+    z-index: 1000;
+    background-color: var(--overlay-bg-color);
+    background-image: none;
+    backdrop-filter: blur(2px);
+  }
+
+  .unchained-auth__card {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    width: 100%;
+    max-width: 380px;
+    padding: 2rem;
+    box-sizing: border-box;
+    border-radius: var(--border-radius-lg, 0.75rem);
+    background-color: var(--island-bg-color);
+    box-shadow: var(--shadow-island);
+    border: 1px solid var(--dialog-border-color);
+
+    .ExcalidrawLogo {
+      align-self: center;
+      margin-bottom: 0.25rem;
+    }
+  }
+
+  .unchained-auth__title {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    text-align: center;
+    color: var(--text-primary-color);
+  }
+
+  .unchained-auth__message {
+    margin: 0;
+    font-size: 0.875rem;
+    text-align: center;
+    color: var(--color-gray-60, #7a7a7a);
+  }
+
+  .unchained-auth__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-primary-color);
+
+    input {
+      height: 2.5rem;
+      padding: 0 0.75rem;
+      font-family: inherit;
+      font-size: 1rem;
+      color: var(--text-primary-color);
+      background-color: var(--input-bg-color);
+      border: 1px solid var(--input-border-color);
+      border-radius: var(--border-radius-md, 0.5rem);
+      outline: none;
+      box-sizing: border-box;
+
+      &:hover {
+        background-color: var(--input-hover-bg-color);
+      }
+
+      &:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 1px var(--color-primary);
+      }
+    }
+  }
+
+  .unchained-auth__error {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: var(--border-radius-md, 0.5rem);
+    color: var(--color-danger-text, #db6965);
+    background-color: var(--color-danger-background, #fff0f0);
+  }
+
+  .unchained-auth__submit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.75rem;
+    margin-top: 0.25rem;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-surface-lowest, #fff);
+    background-color: var(--color-primary);
+    border: none;
+    border-radius: var(--border-radius-md, 0.5rem);
+    transition: background-color 0.15s;
+
+    &:hover {
+      background-color: var(--color-primary-darker);
+    }
+
+    &:active {
+      background-color: var(--color-primary-darkest);
+    }
+
+    &:disabled {
+      cursor: progress;
+      opacity: 0.8;
+    }
+
+    .Spinner {
+      --spinner-color: var(--color-surface-lowest, #fff);
+    }
+  }
+
+  .unchained-auth__switch {
+    align-self: center;
+    padding: 0.25rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    color: var(--color-primary);
+    background: none;
+    border: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}

@@ -1,0 +1,594 @@
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+
+import express from "express";
+
+import {
+  clearSessionCookie,
+  createSession,
+  createUser,
+  deleteSession,
+  deleteUserSessions,
+  getDummyHash,
+  getLoginRetryAfter,
+  getSessionToken,
+  getSessionUser,
+  getUserByUsername,
+  registerFailedLogin,
+  resetLoginAttempts,
+  setSessionCookie,
+  setUserPassword,
+  toPublicUser,
+  verifyPassword,
+} from "./auth.js";
+import { config } from "./config.js";
+import { transaction } from "./db.js";
+
+const ID_RE = /^[a-zA-Z0-9_-]{1,64}$/;
+const BLOB_KINDS = new Set(["rooms", "shareLinks"]);
+const MAX_NAME_LENGTH = 256;
+
+class HttpError extends Error {
+  constructor(status, message, extra) {
+    super(message);
+    this.status = status;
+    this.extra = extra;
+  }
+}
+
+const assertId = (...ids) => {
+  for (const id of ids) {
+    if (typeof id !== "string" || !ID_RE.test(id)) {
+      throw new HttpError(400, "Identifiant invalide.");
+    }
+  }
+};
+
+const sanitizeName = (name, fallback) => {
+  if (typeof name !== "string") {
+    return fallback;
+  }
+  const trimmed = name.trim().slice(0, MAX_NAME_LENGTH);
+  return trimmed || fallback;
+};
+
+const defaultDrawingName = () => {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `Untitled-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+    d.getDate(),
+  )}-${pad(d.getHours())}${pad(d.getMinutes())}`;
+};
+
+const toDrawingSummary = (row) => ({
+  id: row.id,
+  name: row.name,
+  version: row.version,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+const toDrawing = (row) => ({
+  ...toDrawingSummary(row),
+  elements: JSON.parse(row.elements),
+  appState: JSON.parse(row.app_state),
+});
+
+export const createApp = (db) => {
+  const app = express();
+  app.set("trust proxy", config.trustProxy);
+  app.disable("x-powered-by");
+
+  app.use((req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    next();
+  });
+
+  const api = express.Router();
+  api.use(express.json({ limit: config.maxBodySize }));
+  api.use((req, res, next) => {
+    res.setHeader("Cache-Control", "no-store");
+    // Mutating requests must carry a custom header. Browsers won't send one
+    // cross-origin without a CORS preflight (which we never allow), so this
+    // protects cookie-authenticated endpoints against CSRF.
+    if (
+      !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
+      req.get("X-Requested-With") !== "excalidraw"
+    ) {
+      return next(new HttpError(403, "Requête refusée."));
+    }
+    next();
+  });
+
+  // authentication
+  // ---------------------------------------------------------------------------
+
+  const authenticate = (req, res, next) => {
+    const user = getSessionUser(db, getSessionToken(req));
+    if (!user) {
+      return next(new HttpError(401, "Authentification requise."));
+    }
+    req.user = user;
+    next();
+  };
+
+  api.get("/auth/config", (req, res) => {
+    res.json({ allowRegistration: config.allowRegistration });
+  });
+
+  api.get("/auth/me", authenticate, (req, res) => {
+    res.json({ user: toPublicUser(req.user) });
+  });
+
+  api.post("/auth/login", async (req, res) => {
+    const { username, password } = req.body || {};
+    if (typeof username !== "string" || typeof password !== "string") {
+      throw new HttpError(400, "Identifiants manquants.");
+    }
+    const throttleKey = `${req.ip}|${username.toLowerCase()}`;
+    const retryAfter = getLoginRetryAfter(throttleKey);
+    if (retryAfter) {
+      res.setHeader("Retry-After", String(retryAfter));
+      throw new HttpError(
+        429,
+        "Trop de tentatives de connexion. Réessayez plus tard.",
+      );
+    }
+
+    const user = getUserByUsername(db, username);
+    const valid = await verifyPassword(
+      password,
+      user ? user.password_hash : await getDummyHash(),
+    );
+    if (!user || !valid) {
+      registerFailedLogin(throttleKey);
+      throw new HttpError(401, "Nom d'utilisateur ou mot de passe incorrect.");
+    }
+    resetLoginAttempts(throttleKey);
+
+    setSessionCookie(req, res, createSession(db, user.id));
+    res.json({ user: toPublicUser(user) });
+  });
+
+  api.post("/auth/register", async (req, res) => {
+    if (!config.allowRegistration) {
+      throw new HttpError(403, "Les inscriptions sont désactivées.");
+    }
+    const { username, password } = req.body || {};
+    let user;
+    try {
+      user = await createUser(db, { username, password, isAdmin: false });
+    } catch (error) {
+      throw new HttpError(400, error.message);
+    }
+    setSessionCookie(req, res, createSession(db, user.id));
+    res.status(201).json({ user: toPublicUser(user) });
+  });
+
+  api.post("/auth/logout", (req, res) => {
+    deleteSession(db, getSessionToken(req));
+    clearSessionCookie(req, res);
+    res.json({ ok: true });
+  });
+
+  api.post("/auth/password", authenticate, async (req, res) => {
+    const { currentPassword, newPassword } = req.body || {};
+    if (
+      typeof currentPassword !== "string" ||
+      !(await verifyPassword(currentPassword, req.user.password_hash))
+    ) {
+      throw new HttpError(400, "Le mot de passe actuel est incorrect.");
+    }
+    try {
+      await setUserPassword(db, req.user.id, newPassword);
+    } catch (error) {
+      throw new HttpError(400, error.message);
+    }
+    // log out every other device
+    deleteUserSessions(db, req.user.id, getSessionToken(req));
+    res.json({ ok: true });
+  });
+
+  // everything below requires an authenticated user
+  api.use(authenticate);
+
+  // drawings
+  // ---------------------------------------------------------------------------
+
+  const getOwnDrawing = (req) => {
+    assertId(req.params.id);
+    const row = db
+      .prepare("SELECT * FROM drawings WHERE id = ? AND owner_id = ?")
+      .get(req.params.id, req.user.id);
+    if (!row) {
+      throw new HttpError(404, "Dessin introuvable.");
+    }
+    return row;
+  };
+
+  const insertDrawing = (ownerId, { name, elements, appState }) => {
+    const now = Date.now();
+    const row = {
+      id: crypto.randomUUID(),
+      owner_id: ownerId,
+      name: sanitizeName(name, defaultDrawingName()),
+      elements: JSON.stringify(Array.isArray(elements) ? elements : []),
+      app_state: JSON.stringify(
+        appState && typeof appState === "object" ? appState : {},
+      ),
+      version: 1,
+      created_at: now,
+      updated_at: now,
+    };
+    db.prepare(
+      `INSERT INTO drawings
+         (id, owner_id, name, elements, app_state, version, created_at, updated_at)
+       VALUES
+         (:id, :owner_id, :name, :elements, :app_state, :version, :created_at, :updated_at)`,
+    ).run(row);
+    return row;
+  };
+
+  api.get("/drawings", (req, res) => {
+    const rows = db
+      .prepare(
+        `SELECT id, name, version, created_at, updated_at FROM drawings
+         WHERE owner_id = ? ORDER BY updated_at DESC`,
+      )
+      .all(req.user.id);
+    res.json({ drawings: rows.map(toDrawingSummary) });
+  });
+
+  api.post("/drawings", (req, res) => {
+    const row = insertDrawing(req.user.id, req.body || {});
+    res.status(201).json({ drawing: toDrawing(row) });
+  });
+
+  api.get("/drawings/:id", (req, res) => {
+    res.json({ drawing: toDrawing(getOwnDrawing(req)) });
+  });
+
+  /** HEAD-like cheap check used to detect changes made from other tabs */
+  api.get("/drawings/:id/version", (req, res) => {
+    assertId(req.params.id);
+    const row = db
+      .prepare(
+        "SELECT version, updated_at FROM drawings WHERE id = ? AND owner_id = ?",
+      )
+      .get(req.params.id, req.user.id);
+    if (!row) {
+      throw new HttpError(404, "Dessin introuvable.");
+    }
+    res.json({ version: row.version, updatedAt: row.updated_at });
+  });
+
+  api.put("/drawings/:id", (req, res) => {
+    const { name, elements, appState, baseVersion } = req.body || {};
+    if (!Array.isArray(elements)) {
+      throw new HttpError(400, "Contenu du dessin invalide.");
+    }
+    const result = transaction(db, () => {
+      const row = getOwnDrawing(req);
+      if (typeof baseVersion === "number" && baseVersion !== row.version) {
+        throw new HttpError(409, "Le dessin a été modifié ailleurs.", {
+          version: row.version,
+        });
+      }
+      const updated = {
+        id: row.id,
+        name: sanitizeName(name, row.name),
+        elements: JSON.stringify(elements),
+        app_state: JSON.stringify(
+          appState && typeof appState === "object" ? appState : {},
+        ),
+        version: row.version + 1,
+        updated_at: Date.now(),
+      };
+      db.prepare(
+        `UPDATE drawings SET name = :name, elements = :elements,
+           app_state = :app_state, version = :version, updated_at = :updated_at
+         WHERE id = :id`,
+      ).run(updated);
+      return updated;
+    });
+    res.json({
+      version: result.version,
+      updatedAt: result.updated_at,
+      name: result.name,
+    });
+  });
+
+  api.patch("/drawings/:id", (req, res) => {
+    const row = getOwnDrawing(req);
+    const name = sanitizeName(req.body?.name, row.name);
+    db.prepare("UPDATE drawings SET name = ? WHERE id = ?").run(name, row.id);
+    res.json({ drawing: toDrawingSummary({ ...row, name }) });
+  });
+
+  api.post("/drawings/:id/duplicate", (req, res) => {
+    const row = getOwnDrawing(req);
+    const copy = insertDrawing(req.user.id, {
+      name: sanitizeName(req.body?.name, `${row.name} (copie)`),
+      elements: JSON.parse(row.elements),
+      appState: JSON.parse(row.app_state),
+    });
+    res.status(201).json({ drawing: toDrawingSummary(copy) });
+  });
+
+  api.delete("/drawings/:id", (req, res) => {
+    const row = getOwnDrawing(req);
+    db.prepare("DELETE FROM drawings WHERE id = ?").run(row.id);
+    res.json({ ok: true });
+  });
+
+  // image files of private drawings
+  // ---------------------------------------------------------------------------
+
+  api.get("/files/:id", (req, res) => {
+    assertId(req.params.id);
+    const row = db
+      .prepare("SELECT * FROM files WHERE owner_id = ? AND id = ?")
+      .get(req.user.id, req.params.id);
+    if (!row) {
+      throw new HttpError(404, "Fichier introuvable.");
+    }
+    res.json({
+      id: row.id,
+      mimeType: row.mime_type,
+      dataURL: row.data_url,
+      created: row.created_at,
+    });
+  });
+
+  api.put("/files/:id", (req, res) => {
+    assertId(req.params.id);
+    const { mimeType, dataURL, created } = req.body || {};
+    if (
+      typeof mimeType !== "string" ||
+      typeof dataURL !== "string" ||
+      !dataURL.startsWith("data:")
+    ) {
+      throw new HttpError(400, "Fichier invalide.");
+    }
+    db.prepare(
+      `INSERT INTO files (owner_id, id, mime_type, data_url, created_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (owner_id, id) DO UPDATE SET
+         mime_type = excluded.mime_type, data_url = excluded.data_url`,
+    ).run(
+      req.user.id,
+      req.params.id,
+      mimeType,
+      dataURL,
+      typeof created === "number" ? created : Date.now(),
+    );
+    res.json({ ok: true });
+  });
+
+  // personal library
+  // ---------------------------------------------------------------------------
+
+  api.get("/library", (req, res) => {
+    const row = db
+      .prepare("SELECT data FROM libraries WHERE owner_id = ?")
+      .get(req.user.id);
+    res.json({ library: row ? JSON.parse(row.data) : null });
+  });
+
+  api.put("/library", (req, res) => {
+    const data = req.body || {};
+    if (!Array.isArray(data.libraryItems)) {
+      throw new HttpError(400, "Bibliothèque invalide.");
+    }
+    db.prepare(
+      `INSERT INTO libraries (owner_id, data, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT (owner_id) DO UPDATE SET
+         data = excluded.data, updated_at = excluded.updated_at`,
+    ).run(req.user.id, JSON.stringify(data), Date.now());
+    res.json({ ok: true });
+  });
+
+  // end-to-end encrypted collaboration scenes
+  // ---------------------------------------------------------------------------
+
+  const toStoredScene = (row) => ({
+    sceneVersion: row.scene_version,
+    iv: Buffer.from(row.iv).toString("base64"),
+    ciphertext: Buffer.from(row.ciphertext).toString("base64"),
+    revision: row.revision,
+  });
+
+  api.get("/rooms/:id", (req, res) => {
+    assertId(req.params.id);
+    const row = db
+      .prepare("SELECT * FROM rooms WHERE id = ?")
+      .get(req.params.id);
+    if (!row) {
+      throw new HttpError(404, "Salle introuvable.");
+    }
+    res.json(toStoredScene(row));
+  });
+
+  api.put("/rooms/:id", (req, res) => {
+    assertId(req.params.id);
+    const { sceneVersion, iv, ciphertext, revision } = req.body || {};
+    if (
+      typeof sceneVersion !== "number" ||
+      typeof iv !== "string" ||
+      typeof ciphertext !== "string" ||
+      typeof revision !== "number"
+    ) {
+      throw new HttpError(400, "Scène invalide.");
+    }
+    const nextRevision = transaction(db, () => {
+      const row = db
+        .prepare("SELECT * FROM rooms WHERE id = ?")
+        .get(req.params.id);
+      const currentRevision = row ? row.revision : 0;
+      // optimistic concurrency: the client must have reconciled its scene
+      // with the latest stored one
+      if (revision !== currentRevision) {
+        throw new HttpError(
+          409,
+          "La scène a été modifiée.",
+          row ? toStoredScene(row) : { revision: 0 },
+        );
+      }
+      db.prepare(
+        `INSERT INTO rooms (id, scene_version, iv, ciphertext, revision, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT (id) DO UPDATE SET
+           scene_version = excluded.scene_version, iv = excluded.iv,
+           ciphertext = excluded.ciphertext, revision = excluded.revision,
+           updated_at = excluded.updated_at`,
+      ).run(
+        req.params.id,
+        sceneVersion,
+        Buffer.from(iv, "base64"),
+        Buffer.from(ciphertext, "base64"),
+        currentRevision + 1,
+        Date.now(),
+      );
+      return currentRevision + 1;
+    });
+    res.json({ revision: nextRevision });
+  });
+
+  // end-to-end encrypted shareable links
+  // ---------------------------------------------------------------------------
+
+  const rawBody = express.raw({
+    type: "application/octet-stream",
+    limit: config.maxBodySize,
+  });
+
+  api.post("/share", rawBody, (req, res) => {
+    if (!Buffer.isBuffer(req.body) || !req.body.length) {
+      throw new HttpError(400, "Contenu invalide.");
+    }
+    const id = crypto.randomBytes(12).toString("base64url");
+    db.prepare(
+      "INSERT INTO share_links (id, owner_id, data, created_at) VALUES (?, ?, ?, ?)",
+    ).run(id, req.user.id, req.body, Date.now());
+    res.status(201).json({ id });
+  });
+
+  api.get("/share/:id", (req, res) => {
+    assertId(req.params.id);
+    const row = db
+      .prepare("SELECT data FROM share_links WHERE id = ?")
+      .get(req.params.id);
+    if (!row) {
+      throw new HttpError(404, "Lien introuvable.");
+    }
+    res.type("application/octet-stream").send(Buffer.from(row.data));
+  });
+
+  // encrypted image files of collab rooms and share links
+  // ---------------------------------------------------------------------------
+
+  const getBlobPrefix = (req) => {
+    const { kind, parentId, fileId } = req.params;
+    if (!BLOB_KINDS.has(kind)) {
+      throw new HttpError(404, "Introuvable.");
+    }
+    assertId(parentId, fileId);
+    return `${kind}/${parentId}`;
+  };
+
+  api.get("/blobs/:kind/:parentId/:fileId", (req, res) => {
+    const prefix = getBlobPrefix(req);
+    const row = db
+      .prepare("SELECT data FROM blobs WHERE prefix = ? AND id = ?")
+      .get(prefix, req.params.fileId);
+    if (!row) {
+      throw new HttpError(404, "Fichier introuvable.");
+    }
+    res.setHeader("Cache-Control", "private, max-age=31536000, immutable");
+    res.type("application/octet-stream").send(Buffer.from(row.data));
+  });
+
+  api.put("/blobs/:kind/:parentId/:fileId", rawBody, (req, res) => {
+    const prefix = getBlobPrefix(req);
+    if (!Buffer.isBuffer(req.body) || !req.body.length) {
+      throw new HttpError(400, "Contenu invalide.");
+    }
+    if (req.params.kind === "shareLinks") {
+      const link = db
+        .prepare("SELECT owner_id FROM share_links WHERE id = ?")
+        .get(req.params.parentId);
+      if (!link || link.owner_id !== req.user.id) {
+        throw new HttpError(403, "Accès refusé.");
+      }
+    }
+    // file ids are content hashes: the first upload wins, so a room member
+    // can't replace an image that others already uploaded
+    db.prepare(
+      `INSERT OR IGNORE INTO blobs (prefix, id, owner_id, data, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    ).run(prefix, req.params.fileId, req.user.id, req.body, Date.now());
+    res.json({ ok: true });
+  });
+
+  api.use((req, res, next) => next(new HttpError(404, "Introuvable.")));
+
+  app.use("/api", api);
+
+  // frontend
+  // ---------------------------------------------------------------------------
+
+  if (config.staticDir) {
+    const indexHtml = path.join(config.staticDir, "index.html");
+    app.use(
+      express.static(config.staticDir, {
+        index: false,
+        setHeaders: (res, filePath) => {
+          const relative = path.relative(config.staticDir, filePath);
+          if (/^(assets|fonts)[\\/]/.test(relative)) {
+            res.setHeader(
+              "Cache-Control",
+              "public, max-age=31536000, immutable",
+            );
+          } else {
+            res.setHeader("Cache-Control", "no-cache");
+          }
+        },
+      }),
+    );
+    app.get(/^(?!\/(api|socket\.io)(\/|$)).*/, (req, res, next) => {
+      if (!fs.existsSync(indexHtml)) {
+        return next();
+      }
+      res.setHeader("Cache-Control", "no-cache");
+      res.sendFile(indexHtml);
+    });
+  }
+
+  // errors
+  // ---------------------------------------------------------------------------
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  app.use((error, req, res, next) => {
+    if (error.type === "entity.too.large") {
+      return res.status(413).json({ error: "Contenu trop volumineux." });
+    }
+    if (error.type === "entity.parse.failed") {
+      return res.status(400).json({ error: "JSON invalide." });
+    }
+    const status = error.status || 500;
+    if (status >= 500) {
+      console.error(error);
+    }
+    res.status(status).json({
+      error: status >= 500 ? "Erreur interne du serveur." : error.message,
+      ...error.extra,
+    });
+  });
+
+  return app;
+};
+
+export const authenticateSocketRequest = (db, req) =>
+  getSessionUser(db, getSessionToken(req));

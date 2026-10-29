@@ -1,6 +1,12 @@
 // define `EXCALIDRAW_ASSET_PATH` as a SSOT
-const OSS_FONTS_CDN = "https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/";
+//
+// Self-hosted by default: fonts are served by our own server, so that the app
+// doesn't depend on (nor leak requests to) a third-party CDN. Set
+// `EXCALIDRAW_FONTS_CDN` at build time to load them from a CDN instead, e.g.
+// "https://excalidraw.nyc3.cdn.digitaloceanspaces.com/oss/" (excalidraw.com).
+const OSS_FONTS_CDN = process.env.EXCALIDRAW_FONTS_CDN || "/";
 const OSS_FONTS_FALLBACK = "/";
+const IS_SELF_HOSTED = OSS_FONTS_CDN === OSS_FONTS_FALLBACK;
 
 /**
  * Custom vite plugin for auto-prefixing `EXCALIDRAW_ASSET_PATH` woff2 fonts in `excalidraw-app`.
@@ -19,7 +25,12 @@ module.exports.woff2BrowserPlugin = () => {
     transform(code, id) {
       // using copy / replace as fonts defined in the `.css` don't have to be manually copied over (vite/rollup does this automatically),
       // but at the same time can't be easily prefixed with the `EXCALIDRAW_ASSET_PATH` only for the `excalidraw-app`
-      if (!isDev && id.endsWith("/excalidraw/fonts/fonts.css")) {
+      // when self-hosted, keep the original relative urls, which get bundled
+      if (
+        !isDev &&
+        !IS_SELF_HOSTED &&
+        id.endsWith("/excalidraw/fonts/fonts.css")
+      ) {
         return `/* WARN: The following content is generated during excalidraw-app build */
 
       @font-face {
@@ -90,13 +101,18 @@ module.exports.woff2BrowserPlugin = () => {
         type="font/woff2"
         crossorigin="anonymous"
       />
-      <link
+      ${
+        // when self-hosted, the UI fonts are bundled (with hashed names)
+        IS_SELF_HOSTED
+          ? ""
+          : `<link
         rel="preload"
         href="${OSS_FONTS_CDN}fonts/Assistant/Assistant-SemiBold.woff2"
         as="font"
         type="font/woff2"
         crossorigin="anonymous"
-      />
+      />`
+      }
       <link
         rel="preload"
         href="${OSS_FONTS_CDN}fonts/ComicShanns/ComicShanns-Regular-279a7b317d12eb88de06167bd672b4b4.woff2"

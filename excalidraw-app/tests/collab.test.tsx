@@ -14,6 +14,8 @@ import type { DurableIncrement, EphemeralIncrement } from "@excalidraw/element";
 
 import ExcalidrawApp from "../App";
 
+import { installFakeServer } from "./fakeServer";
+
 const { h } = window;
 
 Object.defineProperty(window, "crypto", {
@@ -27,25 +29,25 @@ Object.defineProperty(window, "crypto", {
   },
 });
 
-vi.mock("../../excalidraw-app/data/firebase.ts", () => {
-  const loadFromFirebase = async () => null;
-  const saveToFirebase = () => {};
-  const isSavedToFirebase = () => true;
-  const loadFilesFromFirebase = async () => ({
+vi.mock("../../excalidraw-app/data/serverStorage.ts", () => {
+  const loadFromServer = async () => null;
+  const saveToServer = () => {};
+  const isSavedToServer = () => true;
+  const loadFilesFromServer = async () => ({
     loadedFiles: [],
     erroredFiles: [],
   });
-  const saveFilesToFirebase = async () => ({
+  const saveFilesToServer = async () => ({
     savedFiles: new Map(),
     erroredFiles: new Map(),
   });
 
   return {
-    loadFromFirebase,
-    saveToFirebase,
-    isSavedToFirebase,
-    loadFilesFromFirebase,
-    saveFilesToFirebase,
+    loadFromServer,
+    saveToServer,
+    isSavedToServer,
+    loadFilesFromServer,
+    saveFilesToServer,
   };
 });
 
@@ -69,6 +71,10 @@ vi.mock("socket.io-client", () => {
  * i.e. multiplayer history tests could be a good first candidate, as we could test both history stacks simultaneously.
  */
 describe("collaboration", () => {
+  beforeAll(() => {
+    installFakeServer();
+  });
+
   it("should emit two ephemeral increments even though updates get batched", async () => {
     const durableIncrements: DurableIncrement[] = [];
     const ephemeralIncrements: EphemeralIncrement[] = [];

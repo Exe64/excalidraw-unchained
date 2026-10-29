@@ -1,9 +1,8 @@
 import {
-  loginIcon,
-  ExcalLogo,
+  LoadIcon,
+  PlusIcon,
   eyeIcon,
 } from "@excalidraw/excalidraw/components/icons";
-import { useI18n } from "@excalidraw/excalidraw/i18n";
 import { MainMenu } from "@excalidraw/excalidraw/index";
 import React from "react";
 
@@ -12,9 +11,27 @@ import { isDevEnv } from "@excalidraw/common";
 import type { Theme } from "@excalidraw/element/types";
 
 import { LanguageList } from "../app-language/LanguageList";
-import { isExcalidrawPlusSignedUser } from "../app_constants";
+import { useUnchainedI18n } from "../app-language/unchained-i18n";
+import { useAtomValue } from "../app-jotai";
+import { currentUserAtom } from "../auth/auth";
 
 import { saveDebugState } from "./DebugCanvas";
+
+const logoutIcon = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M14 8V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-2" />
+    <path d="M9 12h12l-3-3" />
+    <path d="M18 15l3-3" />
+  </svg>
+);
 
 export const AppMainMenu: React.FC<{
   onCollabDialogOpen: () => any;
@@ -22,10 +39,21 @@ export const AppMainMenu: React.FC<{
   isCollabEnabled: boolean;
   theme: Theme | "system";
   refresh: () => void;
+  onDrawingsDialogOpen: () => void;
+  onNewDrawing: () => void;
+  onLogout: () => void;
 }> = React.memo((props) => {
-  const { t } = useI18n();
+  const { t: tu } = useUnchainedI18n();
+  const user = useAtomValue(currentUserAtom);
   return (
     <MainMenu>
+      <MainMenu.Item icon={LoadIcon} onSelect={props.onDrawingsDialogOpen}>
+        {tu("drawings.title")}
+      </MainMenu.Item>
+      <MainMenu.Item icon={PlusIcon} onSelect={props.onNewDrawing}>
+        {tu("drawings.new")}
+      </MainMenu.Item>
+      <MainMenu.Separator />
       <MainMenu.DefaultItems.LoadScene />
       <MainMenu.DefaultItems.SaveToActiveFile />
       <MainMenu.DefaultItems.Export />
@@ -41,25 +69,19 @@ export const AppMainMenu: React.FC<{
       <MainMenu.DefaultItems.Help />
       <MainMenu.DefaultItems.ClearCanvas />
       <MainMenu.Separator />
-      <MainMenu.ItemLink
-        icon={ExcalLogo}
-        href={`${
-          import.meta.env.VITE_APP_PLUS_LP
-        }/plus?utm_source=excalidraw&utm_medium=app&utm_content=hamburger`}
-        className=""
-      >
-        Excalidraw+
-      </MainMenu.ItemLink>
       <MainMenu.DefaultItems.Socials />
-      <MainMenu.ItemLink
-        icon={loginIcon}
-        href={`${import.meta.env.VITE_APP_PLUS_APP}${
-          isExcalidrawPlusSignedUser ? "" : "/sign-up"
-        }?utm_source=signin&utm_medium=app&utm_content=hamburger`}
-        className="highlighted"
+      <MainMenu.Item
+        icon={logoutIcon}
+        onSelect={props.onLogout}
+        title={
+          user ? tu("auth.signedInAs", { username: user.username }) : undefined
+        }
       >
-        {isExcalidrawPlusSignedUser ? t("labels.signIn") : t("labels.signUp")}
-      </MainMenu.ItemLink>
+        {tu("auth.signOut")}
+        {user && (
+          <span className="unchained-menu-username">{user.username}</span>
+        )}
+      </MainMenu.Item>
       {isDevEnv() && (
         <MainMenu.Item
           icon={eyeIcon}

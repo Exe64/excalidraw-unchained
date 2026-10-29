@@ -33,10 +33,12 @@ import {
   DELETED_ELEMENT_TIMEOUT,
   FILE_UPLOAD_MAX_BYTES,
   ROOM_ID_BYTES,
+  STORAGE_PREFIXES,
 } from "../app_constants";
 
+import { apiRequest } from "./api";
 import { encodeFilesForUpload } from "./FileManager";
-import { saveFilesToFirebase } from "./firebase";
+import { saveFilesToServer } from "./serverStorage";
 
 import type { WS_SUBTYPES } from "../app_constants";
 
@@ -61,9 +63,6 @@ export const getSyncableElements = (
   elements.filter((element) =>
     isSyncableElement(element),
   ) as SyncableExcalidrawElement[];
-
-const BACKEND_V2_GET = import.meta.env.VITE_APP_BACKEND_V2_GET_URL;
-const BACKEND_V2_POST = import.meta.env.VITE_APP_BACKEND_V2_POST_URL;
 
 const generateRoomId = async () => {
   const buffer = new Uint8Array(ROOM_ID_BYTES);
@@ -204,13 +203,11 @@ export const importFromBackend = async (
   decryptionKey: string,
 ): Promise<ImportedDataState> => {
   try {
-    const response = await fetch(`${BACKEND_V2_GET}${id}`);
-
-    if (!response.ok) {
-      window.alert(t("alerts.importBackendFailed"));
-      return {};
-    }
-    const buffer = await response.arrayBuffer();
+    const buffer = await apiRequest<ArrayBuffer>(
+      "GET",
+      `/share/${encodeURIComponent(id)}`,
+      { binary: true },
+    );
 
     try {
       const { data: decodedBuffer } = await decompressData(
@@ -273,20 +270,27 @@ export const exportToBackend = async (
       maxBytes: FILE_UPLOAD_MAX_BYTES,
     });
 
-    const response = await fetch(BACKEND_V2_POST, {
-      method: "POST",
-      body: payload.buffer,
-    });
-    const json = await response.json();
+    let json: { id?: string; error_class?: string };
+    try {
+      json = await apiRequest<{ id: string }>("POST", "/share", {
+        body: payload as Uint8Array<ArrayBuffer>,
+      });
+    } catch (error: any) {
+      json = {
+        error_class: error.status === 413 ? "RequestTooLargeError" : "",
+      };
+    }
     if (json.id) {
       const url = new URL(window.location.href);
+      // don't leak the id of the sharer's drawing
+      url.search = "";
       // We need to store the key (and less importantly the id) as hash instead
       // of queryParam in order to never send it to the server
       url.hash = `json=${json.id},${encryptionKey}`;
       const urlString = url.toString();
 
-      await saveFilesToFirebase({
-        prefix: `/files/shareLinks/${json.id}`,
+      await saveFilesToServer({
+        prefix: `${STORAGE_PREFIXES.shareLinkFiles}/${json.id}`,
         files: filesToUpload,
       });
 

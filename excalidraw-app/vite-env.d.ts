@@ -5,17 +5,18 @@ interface ImportMetaEnv {
   // The port to run the dev server
   VITE_APP_PORT: string;
 
-  VITE_APP_BACKEND_V2_GET_URL: string;
-  VITE_APP_BACKEND_V2_POST_URL: string;
+  // base URL of the Excalidraw Unchained server (see /server). Empty means
+  // same origin, which is the default setup.
+  VITE_APP_API_URL: string;
+  // dev only: where the Vite dev server proxies /api and /socket.io to
+  VITE_APP_DEV_BACKEND_URL: string;
 
-  // collaboration WebSocket server (https: string
+  // collaboration WebSocket server. Empty means same origin (our server)
   VITE_APP_WS_SERVER_URL: string;
 
   // set this only if using the collaboration workflow we use on excalidraw.com
   VITE_APP_PORTAL_URL: string;
   VITE_APP_AI_BACKEND: string;
-
-  VITE_APP_FIREBASE_CONFIG: string;
 
   // whether to disable live reload / HMR. Usuaully what you want to do when
   // debugging Service Workers.
