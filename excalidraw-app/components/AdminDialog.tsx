@@ -4,12 +4,15 @@ import { useCallback, useEffect, useState } from "react";
 import { Dialog } from "@excalidraw/excalidraw/components/Dialog";
 import Spinner from "@excalidraw/excalidraw/components/Spinner";
 import { TextField } from "@excalidraw/excalidraw/components/TextField";
-import { TrashIcon } from "@excalidraw/excalidraw/components/icons";
+import {
+  TrashIcon,
+  downloadIcon,
+} from "@excalidraw/excalidraw/components/icons";
 
 import { useUnchainedI18n } from "../app-language/unchained-i18n";
 import { appJotaiStore, atom, useAtom, useAtomValue } from "../app-jotai";
 import { currentUserAtom } from "../auth/auth";
-import { apiRequest } from "../data/api";
+import { API_BASE, apiRequest } from "../data/api";
 
 import "./AdminDialog.scss";
 
@@ -197,6 +200,247 @@ const UserRow = ({
   );
 };
 
+type Backup = {
+  name: string;
+  size: number;
+  createdAt: number;
+  automatic: boolean;
+};
+
+const formatSize = (bytes: number) =>
+  bytes < 1024 * 1024
+    ? `${Math.max(1, Math.round(bytes / 1024))} Ko`
+    : `${(bytes / 1024 / 1024).toFixed(1)} Mo`;
+
+/** waits for the server to come back after a restore, then reloads */
+const reloadWhenServerIsBack = async (onTimeout: () => void) => {
+  // let the server stop first
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  const deadline = Date.now() + 90e3;
+  while (Date.now() < deadline) {
+    try {
+      await apiRequest("GET", "/auth/config");
+      window.location.reload();
+      return;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+  }
+  onTimeout();
+};
+
+const BackupsSection = ({
+  langCode,
+  onError,
+}: {
+  langCode: string;
+  onError: (message: string | null) => void;
+}) => {
+  const { t } = useUnchainedI18n();
+  const [data, setData] = useState<{
+    backups: Backup[];
+    intervalHours: number;
+    keep: number;
+  } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [restartStatus, setRestartStatus] = useState<
+    "restarting" | "timeout" | null
+  >(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      setData(await apiRequest("GET", "/admin/backups"));
+    } catch (error: any) {
+      onError(error.message);
+    }
+  }, [onError]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const run = async (action: () => Promise<unknown>) => {
+    setBusy(true);
+    try {
+      await action();
+      onError(null);
+      await refresh();
+    } catch (error: any) {
+      onError(error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const restore = async (request: () => Promise<unknown>) => {
+    setBusy(true);
+    try {
+      await request();
+      onError(null);
+      setRestartStatus("restarting");
+      await reloadWhenServerIsBack(() => setRestartStatus("timeout"));
+    } catch (error: any) {
+      onError(error.message);
+      setBusy(false);
+    }
+  };
+
+  const formatDate = (timestamp: number) =>
+    new Date(timestamp).toLocaleString(langCode, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+
+  return (
+    <section className="AdminDialog__section">
+      <h3>{t("admin.backups")}</h3>
+      {restartStatus && (
+        <div className="AdminDialog__notice">
+          {restartStatus === "restarting" ? (
+            <>
+              <Spinner /> {t("admin.restarting")}
+            </>
+          ) : (
+            t("admin.restartTimeout")
+          )}
+        </div>
+      )}
+      {data === null ? (
+        <Spinner />
+      ) : (
+        <>
+          <p className="AdminDialog__meta">
+            {data.intervalHours > 0
+              ? t("admin.backupsHint", {
+                  hours: String(data.intervalHours),
+                  keep: String(data.keep),
+                })
+              : t("admin.backupsDisabled")}
+          </p>
+          <div className="AdminDialog__backupActions">
+            <button
+              type="button"
+              className="AdminDialog__button AdminDialog__button--primary"
+              disabled={busy}
+              onClick={() => run(() => apiRequest("POST", "/admin/backups"))}
+            >
+              {t("admin.backupNow")}
+            </button>
+            <label
+              className={clsx("AdminDialog__button", {
+                "AdminDialog__button--disabled": busy,
+              })}
+            >
+              {t("admin.restoreFile")}
+              <input
+                type="file"
+                accept=".sqlite,.db,application/octet-stream"
+                hidden
+                disabled={busy}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (
+                    file &&
+                    window.confirm(
+                      t("admin.restoreFileConfirm", { name: file.name }),
+                    )
+                  ) {
+                    restore(() =>
+                      apiRequest("POST", "/admin/restore", { body: file }),
+                    );
+                  }
+                }}
+              />
+            </label>
+          </div>
+          {data.backups.length === 0 ? (
+            <p className="AdminDialog__meta">{t("admin.backupsNone")}</p>
+          ) : (
+            <ul className="AdminDialog__users">
+              {data.backups.map((backup) => {
+                const path = `/admin/backups/${encodeURIComponent(
+                  backup.name,
+                )}`;
+                return (
+                  <li key={backup.name} className="AdminDialog__user">
+                    <div className="AdminDialog__userMain">
+                      <div className="AdminDialog__userName">
+                        {formatDate(backup.createdAt)}
+                        <span className="AdminDialog__badge AdminDialog__badge--muted">
+                          {backup.automatic
+                            ? t("admin.backupAuto")
+                            : t("admin.backupManual")}
+                        </span>
+                      </div>
+                      <div className="AdminDialog__meta">
+                        {backup.name} · {formatSize(backup.size)}
+                      </div>
+                    </div>
+                    <div className="AdminDialog__actions">
+                      <a
+                        className="AdminDialog__icon"
+                        href={`${API_BASE}${path}`}
+                        download={backup.name}
+                        title={t("admin.backupDownload")}
+                        aria-label={t("admin.backupDownload")}
+                      >
+                        {downloadIcon}
+                      </a>
+                      <button
+                        type="button"
+                        className="AdminDialog__link"
+                        disabled={busy}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              t("admin.backupRestoreConfirm", {
+                                date: formatDate(backup.createdAt),
+                              }),
+                            )
+                          ) {
+                            restore(() =>
+                              apiRequest("POST", `${path}/restore`, {
+                                json: {},
+                              }),
+                            );
+                          }
+                        }}
+                      >
+                        {t("admin.backupRestore")}
+                      </button>
+                      <button
+                        type="button"
+                        className="AdminDialog__icon"
+                        disabled={busy}
+                        title={t("admin.backupDelete")}
+                        aria-label={t("admin.backupDelete")}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              t("admin.backupDeleteConfirm", {
+                                name: backup.name,
+                              }),
+                            )
+                          ) {
+                            run(() => apiRequest("DELETE", path));
+                          }
+                        }}
+                      >
+                        {TrashIcon}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </>
+      )}
+    </section>
+  );
+};
+
 export const AdminDialog = () => {
   const { t, langCode } = useUnchainedI18n();
   const [isOpen, setIsOpen] = useAtom(adminDialogOpenAtom);
@@ -380,6 +624,8 @@ export const AdminDialog = () => {
               </button>
             </form>
           </section>
+
+          <BackupsSection langCode={langCode} onError={setError} />
         </>
       )}
     </Dialog>

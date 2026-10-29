@@ -9,11 +9,19 @@
  * - image files are stored per user, keyed by their content hash
  */
 
-import { reconcileElements, CaptureUpdateAction } from "@excalidraw/excalidraw";
+import {
+  reconcileElements,
+  CaptureUpdateAction,
+  exportScene,
+} from "@excalidraw/excalidraw";
 import { clearAppStateForLocalStorage } from "@excalidraw/excalidraw/appState";
 import { restoreElements } from "@excalidraw/excalidraw/data/restore";
-import { CANVAS_SEARCH_TAB, DEFAULT_SIDEBAR } from "@excalidraw/common";
-import { getSceneVersion } from "@excalidraw/element";
+import {
+  CANVAS_SEARCH_TAB,
+  DEFAULT_SIDEBAR,
+  isTestEnv,
+} from "@excalidraw/common";
+import { getNonDeletedElements, getSceneVersion } from "@excalidraw/element";
 import { createStore, del, get } from "idb-keyval";
 
 import type { RemoteExcalidrawElement } from "@excalidraw/excalidraw/data/reconcile";
@@ -39,10 +47,13 @@ import { Locker } from "./Locker";
 
 import { getSyncableElements } from ".";
 
-import type { Drawing, DrawingSummary } from "./drawings";
+import type { Drawing, DrawingRole, DrawingSummary } from "./drawings";
 import type { PendingOp } from "./pendingOps";
 
 const SAVE_RETRY_TIMEOUT = 5000;
+/** previews of the drawings list are refreshed at most this often */
+const THUMBNAIL_INTERVAL = 30_000;
+const THUMBNAIL_MAX_SIZE = 480;
 
 /** the drawing currently open in the editor */
 export const currentDrawingAtom = atom<DrawingSummary | null>(null);
@@ -116,6 +127,8 @@ export const getDrawingIdFromUrl = () =>
 export class ServerData {
   /** id of the drawing open in the editor */
   static drawingId: string | null = null;
+  /** the user's access to the current drawing */
+  static role: DrawingRole = "owner";
   /** server version the editor's state is based on */
   private static version = 0;
   private static savedSignature: string | null = null;
@@ -154,6 +167,7 @@ export class ServerData {
   ) {
     this.cancelPendingSave();
     this.drawingId = drawing.id;
+    this.role = drawing.role ?? "owner";
     this.version = drawing.version;
     this.appliedOps = new Set(opts?.appliedOps);
     // converted operations must be saved (and acknowledged) right away
@@ -166,6 +180,9 @@ export class ServerData {
       version: drawing.version,
       createdAt: drawing.createdAt,
       updatedAt: drawing.updatedAt,
+      role: drawing.role ?? "owner",
+      ownerUsername: drawing.ownerUsername,
+      thumbnailUpdatedAt: drawing.thumbnailUpdatedAt,
     });
     appJotaiStore.set(saveErrorAtom, false);
     setLastOpenedDrawing(drawing.id);
@@ -393,6 +410,8 @@ export class ServerData {
       });
       appJotaiStore.set(saveErrorAtom, false);
 
+      this.updateThumbnail({ elements, appState, files });
+
       const sceneSize = JSON.stringify(payload.elements).length;
       this.storageSizes = {
         scene: sceneSize,
@@ -466,6 +485,60 @@ export class ServerData {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // previews
+  // ---------------------------------------------------------------------------
+
+  private static thumbnailTimes = new Map<string, number>();
+
+  /**
+   * Refreshes the preview shown in the list of drawings (throttled). Without
+   * a scene, uses the editor's.
+   */
+  static async updateThumbnail(
+    scene?: {
+      elements: readonly ExcalidrawElement[];
+      appState: AppState;
+      files: BinaryFiles;
+    },
+    opts?: { force?: boolean },
+  ) {
+    const drawingId = this.drawingId;
+    const api = this.excalidrawAPI;
+    if (!drawingId || this.role === "view" || isTestEnv()) {
+      return;
+    }
+    const last = this.thumbnailTimes.get(drawingId) ?? 0;
+    if (!opts?.force && Date.now() - last < THUMBNAIL_INTERVAL) {
+      return;
+    }
+    const elements = getNonDeletedElements(
+      scene?.elements ?? api?.getSceneElementsIncludingDeleted() ?? [],
+    );
+    if (!elements.length) {
+      return;
+    }
+    this.thumbnailTimes.set(drawingId, Date.now());
+    try {
+      const appState = scene?.appState ?? api!.getAppState();
+      const blob = await exportScene({
+        type: "jpeg",
+        data: {
+          elements,
+          appState: { viewBackgroundColor: appState.viewBackgroundColor },
+          files: scene?.files ?? api?.getFiles() ?? null,
+        },
+        config: { maxWidthOrHeight: THUMBNAIL_MAX_SIZE, quality: 0.8 },
+      });
+      await DrawingsAPI.saveThumbnail(drawingId, blob);
+      if (drawingId === this.drawingId) {
+        this.updateCurrentDrawing({ thumbnailUpdatedAt: Date.now() });
+      }
+    } catch (error) {
+      console.warn("couldn't update the preview", error);
+    }
+  }
+
   /** whether some changes haven't been persisted to the server yet */
   static hasUnsavedChanges = () => {
     if (this.inflight > 0) {
@@ -492,7 +565,7 @@ export class ServerData {
   };
 
   static isSavePaused = () => {
-    return document.hidden || this.locker.isLocked();
+    return document.hidden || this.locker.isLocked() || this.role === "view";
   };
 
   // ---------------------------------------------------------------------------
@@ -508,7 +581,12 @@ export class ServerData {
           try {
             const file = await apiRequest<BinaryFileData>(
               "GET",
-              `/files/${encodeURIComponent(id)}`,
+              // in shared drawings, images may come from other users
+              `/files/${encodeURIComponent(id)}${
+                ServerData.drawingId
+                  ? `?drawing=${encodeURIComponent(ServerData.drawingId)}`
+                  : ""
+              }`,
             );
             loadedFiles.push({ ...file, lastRetrieved: Date.now() });
           } catch (error: any) {

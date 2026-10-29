@@ -1,10 +1,14 @@
 services:
   excalidraw:
+    # image published on each push to main (`docker compose pull` to update);
+    # `docker compose up -d --build` builds it from the sources instead
+    image: ghcr.io/exe64/excalidraw-unchained:latest
     build:
       context: .
     container_name: excalidraw
     ports:
       - "3000:80"
+    # also needed to apply a backup restore (the server restarts)
     restart: unless-stopped
     environment:
       # optional: creates the administrator account on first start. Without
@@ -22,6 +26,9 @@ services:
       - AI_API_KEY=${AI_API_KEY:-}
       - AI_MODEL=${AI_MODEL:-}
       - AI_BASE_URL=${AI_BASE_URL:-}
+      # automatic backups of the database, in /data/backups (0 = disabled)
+      - BACKUP_INTERVAL_HOURS=${BACKUP_INTERVAL_HOURS:-24}
+      - BACKUP_KEEP=${BACKUP_KEEP:-14}
     volumes:
       - excalidraw-data:/data
 

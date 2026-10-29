@@ -4,6 +4,7 @@ import {
   brainIcon,
   settingsIcon,
   eyeIcon,
+  historyIcon,
 } from "@excalidraw/excalidraw/components/icons";
 import { MainMenu } from "@excalidraw/excalidraw/index";
 import React from "react";
@@ -37,6 +38,21 @@ const logoutIcon = (
   </svg>
 );
 
+const accountIcon = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" />
+  </svg>
+);
+
 export const AppMainMenu: React.FC<{
   onCollabDialogOpen: () => any;
   isCollaborating: boolean;
@@ -48,6 +64,8 @@ export const AppMainMenu: React.FC<{
   onLogout: () => void;
   onApiAccessDialogOpen: () => void;
   onAdminDialogOpen: () => void;
+  onAccountDialogOpen: () => void;
+  onVersionHistoryDialogOpen: () => void;
 }> = React.memo((props) => {
   const { t: tu } = useUnchainedI18n();
   const user = useAtomValue(currentUserAtom);
@@ -59,6 +77,12 @@ export const AppMainMenu: React.FC<{
       </MainMenu.Item>
       <MainMenu.Item icon={PlusIcon} onSelect={props.onNewDrawing}>
         {tu("drawings.new")}
+      </MainMenu.Item>
+      <MainMenu.Item
+        icon={historyIcon}
+        onSelect={props.onVersionHistoryDialogOpen}
+      >
+        {tu("history.menu")}
       </MainMenu.Item>
       <MainMenu.Separator />
       <MainMenu.DefaultItems.LoadScene />
@@ -89,6 +113,9 @@ export const AppMainMenu: React.FC<{
           )}
         </MainMenu.Item>
       )}
+      <MainMenu.Item icon={accountIcon} onSelect={props.onAccountDialogOpen}>
+        {tu("account.menu")}
+      </MainMenu.Item>
       <MainMenu.Item icon={brainIcon} onSelect={props.onApiAccessDialogOpen}>
         {tu("api.title")}
       </MainMenu.Item>

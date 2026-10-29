@@ -26,6 +26,34 @@
     background-color: var(--color-danger-background, #fff0f0);
   }
 
+  .AdminDialog__notice {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: var(--border-radius-md);
+    background-color: var(--color-surface-primary-container);
+  }
+
+  .AdminDialog__backupActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+
+    label.AdminDialog__button {
+      display: inline-flex;
+      align-items: center;
+      box-sizing: border-box;
+      cursor: pointer;
+    }
+  }
+
+  .AdminDialog__button--disabled {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
   .AdminDialog__radio {
     display: flex;
     align-items: flex-start;

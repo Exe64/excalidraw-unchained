@@ -40,6 +40,7 @@ import {
   DiscordIcon,
   LoadIcon,
   PlusIcon,
+  historyIcon,
   usersIcon,
   share,
   youtubeIcon,
@@ -112,6 +113,14 @@ import {
   adminDialogOpenAtom,
   refreshPendingUsersCount,
 } from "./components/AdminDialog";
+import {
+  AccountDialog,
+  accountDialogOpenAtom,
+} from "./components/AccountDialog";
+import {
+  VersionHistoryDialog,
+  versionHistoryDialogOpenAtom,
+} from "./components/VersionHistoryDialog";
 
 import {
   exportToBackend,
@@ -134,6 +143,7 @@ import {
   getDrawingUrl,
   getPersistableAppState,
   saveErrorAtom,
+  currentDrawingAtom,
 } from "./data/ServerData";
 import { AuthGate } from "./auth/AuthGate";
 import { logout } from "./auth/auth";
@@ -476,6 +486,10 @@ const ExcalidrawWrapper = () => {
   const [, setDrawingsDialogOpen] = useAtom(drawingsDialogOpenAtom);
   const [, setApiAccessDialogOpen] = useAtom(apiAccessDialogOpenAtom);
   const [isAdminDialogOpen, setAdminDialogOpen] = useAtom(adminDialogOpenAtom);
+  const [, setAccountDialogOpen] = useAtom(accountDialogOpenAtom);
+  const [, setVersionHistoryDialogOpen] = useAtom(versionHistoryDialogOpenAtom);
+  const currentDrawing = useAtomValue(currentDrawingAtom);
+  const isReadOnlyDrawing = currentDrawing?.role === "view";
 
   // administrators see the number of accounts waiting for approval
   useEffect(() => {
@@ -661,14 +675,14 @@ const ExcalidrawWrapper = () => {
   }, [collabAPI]);
 
   const openDrawing = useCallback(
-    async (drawingId: string | null) => {
+    async (drawingId: string | null, opts?: { folderId?: string | null }) => {
       if (!excalidrawAPI || !leaveCollaboration()) {
         return;
       }
       await ServerData.flushSave();
       const drawing = drawingId
         ? await DrawingsAPI.get(drawingId)
-        : await DrawingsAPI.create();
+        : await DrawingsAPI.create({ folderId: opts?.folderId ?? null });
       await loadDrawingIntoEditor(drawing);
     },
     [excalidrawAPI, leaveCollaboration, loadDrawingIntoEditor],
@@ -687,6 +701,35 @@ const ExcalidrawWrapper = () => {
         : await DrawingsAPI.create(),
     );
   }, [excalidrawAPI, loadDrawingIntoEditor]);
+
+  const getEditorFiles = useCallback(
+    () => excalidrawAPI?.getFiles() ?? {},
+    [excalidrawAPI],
+  );
+
+  // whenever another drawing is opened (whichever way)
+  const currentDrawingId = currentDrawing?.id;
+  useEffect(() => {
+    const drawing = appJotaiStore.get(currentDrawingAtom);
+    if (!excalidrawAPI || !drawing) {
+      return;
+    }
+    // (after the scene is loaded, which resets the toast)
+    const timer = window.setTimeout(() => {
+      if (drawing.role === "view") {
+        excalidrawAPI.setToast({
+          message: tu("drawings.readOnly", {
+            name: drawing.name,
+            owner: drawing.ownerUsername || "",
+          }),
+        });
+      } else if (!drawing.thumbnailUpdatedAt) {
+        // no preview yet (e.g. created before previews existed, or by the API)
+        ServerData.updateThumbnail(undefined, { force: true });
+      }
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [excalidrawAPI, currentDrawingId]);
 
   const onDrawingError = useCallback((error: Error) => {
     console.error(error);
@@ -1091,6 +1134,8 @@ const ExcalidrawWrapper = () => {
         autoFocus={true}
         theme={editorTheme}
         onThemeChange={setAppTheme}
+        // drawings shared read-only can't be edited
+        viewModeEnabled={isReadOnlyDrawing ? true : undefined}
         renderTopRightUI={(isMobile) => {
           if (isMobile || !collabAPI || !isCollabAvailable) {
             return null;
@@ -1131,6 +1176,8 @@ const ExcalidrawWrapper = () => {
           onLogout={onLogout}
           onApiAccessDialogOpen={() => setApiAccessDialogOpen(true)}
           onAdminDialogOpen={() => setAdminDialogOpen(true)}
+          onAccountDialogOpen={() => setAccountDialogOpen(true)}
+          onVersionHistoryDialogOpen={() => setVersionHistoryDialogOpen(true)}
         />
         <AppWelcomeScreen
           onCollabDialogOpen={onCollabDialogOpen}
@@ -1143,10 +1190,17 @@ const ExcalidrawWrapper = () => {
         </OverwriteConfirmDialog>
         <ApiAccessDialog />
         <AdminDialog />
+        <AccountDialog />
+        <VersionHistoryDialog
+          getFiles={getEditorFiles}
+          onRestored={(drawing) =>
+            loadDrawingIntoEditor(drawing, { keepViewport: true })
+          }
+        />
         <DrawingsDialog
           onOpenDrawing={(id) => openDrawing(id)}
-          onNewDrawing={() => openDrawing(null)}
-          onCurrentDrawingDeleted={openMostRecentDrawing}
+          onNewDrawing={(folderId) => openDrawing(null, { folderId })}
+          onCurrentDrawingRemoved={openMostRecentDrawing}
           onCurrentDrawingRenamed={(name) => {
             ServerData.updateCurrentDrawing({ name });
             excalidrawAPI?.updateScene({ appState: { name } });
@@ -1217,6 +1271,22 @@ const ExcalidrawWrapper = () => {
               perform: () => {
                 openDrawing(null).catch(onDrawingError);
               },
+            },
+            {
+              label: tu("history.menu"),
+              category: DEFAULT_CATEGORIES.app,
+              predicate: () => !!ServerData.drawingId,
+              icon: historyIcon,
+              keywords: ["history", "versions", "restore", "historique"],
+              perform: () => setVersionHistoryDialogOpen(true),
+            },
+            {
+              label: tu("account.menu"),
+              category: DEFAULT_CATEGORIES.app,
+              predicate: true,
+              icon: usersIcon,
+              keywords: ["account", "password", "compte", "mot de passe"],
+              perform: () => setAccountDialogOpen(true),
             },
             {
               label: t("labels.liveCollaboration"),

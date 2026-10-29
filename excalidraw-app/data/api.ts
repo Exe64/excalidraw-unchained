@@ -38,6 +38,8 @@ export const apiRequest = async <T = any>(
     signal?: AbortSignal;
     /** return the raw response body as an ArrayBuffer */
     binary?: boolean;
+    /** of `body` (default: application/octet-stream) */
+    contentType?: string;
   } = {},
 ): Promise<T> => {
   const headers: Record<string, string> = {
@@ -49,7 +51,7 @@ export const apiRequest = async <T = any>(
     headers["Content-Type"] = "application/json";
     body = JSON.stringify(opts.json);
   } else if (body !== undefined) {
-    headers["Content-Type"] = "application/octet-stream";
+    headers["Content-Type"] = opts.contentType || "application/octet-stream";
   }
 
   const response = await fetch(`${API_BASE}${path}`, {

@@ -38,7 +38,8 @@ const en = {
   "drawings.rename": "Rename",
   "drawings.duplicate": "Duplicate",
   "drawings.delete": "Delete",
-  "drawings.deleteConfirm": 'Delete "{{name}}"? This can\'t be undone.',
+  "drawings.deleteConfirm":
+    'Move "{{name}}" to the trash? You can restore it for 30 days.',
   "drawings.empty": "No drawing yet.",
   "drawings.current": "Current",
   "drawings.updated": "Edited {{date}}",
@@ -116,6 +117,98 @@ const en = {
   "api.revoke": "Revoke",
   "api.revokeConfirm":
     'Revoke the token "{{name}}"? Assistants using it will lose access.',
+  "account.title": "My account",
+  "account.menu": "My account",
+  "account.passwordChanged": "Your password has been changed.",
+  "drawings.back": "Back",
+  "drawings.favorite": "Add to favorites",
+  "drawings.unfavorite": "Remove from favorites",
+  "drawings.actions": "Actions",
+  "drawings.moveTo": "Move to…",
+  "drawings.share": "Share…",
+  "drawings.leave": "Remove from my drawings",
+  "drawings.leaveConfirm":
+    'Remove "{{name}}" from your drawings? Its owner will have to share it again.',
+  "drawings.sharedBy": "Shared by {{name}}",
+  "drawings.sharedByReadOnly": "Shared by {{name}} · read only",
+  "drawings.all": "All drawings",
+  "drawings.favorites": "Favorites",
+  "drawings.sharedWithMe": "Shared with me",
+  "drawings.noShared": "Nobody has shared a drawing with you yet.",
+  "drawings.noFavorites":
+    "No favorite yet. Click the star of a drawing to find it here.",
+  "drawings.readOnly":
+    'Read only: "{{name}}" was shared with you by {{owner}}.',
+  "folders.title": "Folders",
+  "folders.new": "New folder",
+  "folders.rename": "Rename the folder",
+  "folders.delete": "Delete the folder",
+  "folders.deleteConfirm":
+    'Delete the folder "{{name}}"? Its drawings are kept and moved out of it.',
+  "folders.empty": "No folder yet.",
+  "folders.none": "No folder",
+  "trash.title": "Trash",
+  "trash.hint":
+    "Deleted drawings are kept 30 days before being permanently deleted.",
+  "trash.none": "The trash is empty.",
+  "trash.empty": "Empty the trash",
+  "trash.emptyConfirm":
+    "Permanently delete all the drawings in the trash? This can't be undone.",
+  "trash.restore": "Restore",
+  "trash.deleteForever": "Delete permanently",
+  "trash.deleteForeverConfirm":
+    'Permanently delete "{{name}}"? This can\'t be undone.',
+  "trash.purgedOn": "Deleted permanently on {{date}}",
+  "share.title": 'Share "{{name}}"',
+  "share.hint":
+    "Give other users of this instance access to this drawing. Editors can change it; readers can only look at it.",
+  "share.username": "Username",
+  "share.roleEdit": "Can edit",
+  "share.roleView": "Can view",
+  "share.add": "Share",
+  "share.none": "This drawing isn't shared yet.",
+  "share.remove": "Stop sharing",
+  "history.title": 'Version history · "{{name}}"',
+  "history.menu": "Version history",
+  "history.saveNow": "Save a version now",
+  "history.hint":
+    "A version is saved automatically every 10 minutes of editing, and before each restore.",
+  "history.none": "No version yet.",
+  "history.reasonManual": "Saved manually",
+  "history.reasonBeforeRestore": "Before a restore",
+  "history.reasonApi": "Before an API change",
+  "history.reasonAuto": "Automatic",
+  "history.elements": "{{count}} element(s)",
+  "history.emptyVersion": "This version is empty.",
+  "history.previewError": "Couldn't display this version.",
+  "history.selectVersion": "Select a version to preview it.",
+  "history.restoreHint":
+    "The current state is saved as a version before restoring.",
+  "history.restoreConfirm":
+    "Restore this version? The current state will be saved in the history first.",
+  "history.restore": "Restore this version",
+  "admin.backups": "Backups",
+  "admin.backupsHint":
+    "The database is backed up automatically every {{hours}} h; the {{keep}} most recent automatic backups are kept.",
+  "admin.backupsDisabled":
+    "Automatic backups are disabled (BACKUP_INTERVAL_HOURS=0).",
+  "admin.backupsNone": "No backup yet.",
+  "admin.backupNow": "Back up now",
+  "admin.backupAuto": "automatic",
+  "admin.backupManual": "manual",
+  "admin.backupDownload": "Download",
+  "admin.backupRestore": "Restore",
+  "admin.backupRestoreConfirm":
+    "Restore the backup from {{date}}? All the current data (accounts, drawings, settings) will be replaced by its content. A backup of the current state is made first. The server will restart.",
+  "admin.backupDelete": "Delete the backup",
+  "admin.backupDeleteConfirm": 'Delete the backup "{{name}}"?',
+  "admin.restoreFile": "Restore from a file…",
+  "admin.restoreFileConfirm":
+    'Restore "{{name}}"? All the current data will be replaced by the content of this file. A backup of the current state is made first. The server will restart.',
+  "admin.restarting":
+    "Restoring… The server is restarting, the page will reload.",
+  "admin.restartTimeout":
+    "The server hasn't come back yet. Make sure it restarts automatically (Docker restart policy, systemd…), then reload the page.",
   "welcome.heading": "Your drawings are saved on the server.",
   "welcome.heading_line2": 'Find them all in "My drawings", from any device.',
 };
@@ -153,7 +246,7 @@ const fr: Partial<Record<Key, string>> = {
   "drawings.duplicate": "Dupliquer",
   "drawings.delete": "Supprimer",
   "drawings.deleteConfirm":
-    "Supprimer « {{name}} » ? Cette action est irréversible.",
+    "Mettre « {{name}} » à la corbeille ? Vous pourrez le restaurer pendant 30 jours.",
   "drawings.empty": "Aucun dessin pour l'instant.",
   "drawings.current": "Ouvert",
   "drawings.updated": "Modifié {{date}}",
@@ -232,6 +325,98 @@ const fr: Partial<Record<Key, string>> = {
   "api.revoke": "Révoquer",
   "api.revokeConfirm":
     "Révoquer le jeton « {{name}} » ? Les assistants qui l'utilisent perdront l'accès.",
+  "account.title": "Mon compte",
+  "account.menu": "Mon compte",
+  "account.passwordChanged": "Votre mot de passe a été modifié.",
+  "drawings.back": "Retour",
+  "drawings.favorite": "Ajouter aux favoris",
+  "drawings.unfavorite": "Retirer des favoris",
+  "drawings.actions": "Actions",
+  "drawings.moveTo": "Déplacer vers…",
+  "drawings.share": "Partager…",
+  "drawings.leave": "Retirer de mes dessins",
+  "drawings.leaveConfirm":
+    "Retirer « {{name}} » de vos dessins ? Son propriétaire devra le partager à nouveau.",
+  "drawings.sharedBy": "Partagé par {{name}}",
+  "drawings.sharedByReadOnly": "Partagé par {{name}} · lecture seule",
+  "drawings.all": "Tous les dessins",
+  "drawings.favorites": "Favoris",
+  "drawings.sharedWithMe": "Partagés avec moi",
+  "drawings.noShared": "Personne ne vous a encore partagé de dessin.",
+  "drawings.noFavorites":
+    "Aucun favori. Cliquez sur l'étoile d'un dessin pour le retrouver ici.",
+  "drawings.readOnly":
+    "Lecture seule : « {{name}} » vous a été partagé par {{owner}}.",
+  "folders.title": "Dossiers",
+  "folders.new": "Nouveau dossier",
+  "folders.rename": "Renommer le dossier",
+  "folders.delete": "Supprimer le dossier",
+  "folders.deleteConfirm":
+    "Supprimer le dossier « {{name}} » ? Ses dessins sont conservés et sortis du dossier.",
+  "folders.empty": "Aucun dossier.",
+  "folders.none": "Aucun dossier",
+  "trash.title": "Corbeille",
+  "trash.hint":
+    "Les dessins supprimés sont conservés 30 jours avant d'être définitivement effacés.",
+  "trash.none": "La corbeille est vide.",
+  "trash.empty": "Vider la corbeille",
+  "trash.emptyConfirm":
+    "Supprimer définitivement tous les dessins de la corbeille ? Cette action est irréversible.",
+  "trash.restore": "Restaurer",
+  "trash.deleteForever": "Supprimer définitivement",
+  "trash.deleteForeverConfirm":
+    "Supprimer définitivement « {{name}} » ? Cette action est irréversible.",
+  "trash.purgedOn": "Effacé définitivement le {{date}}",
+  "share.title": "Partager « {{name}} »",
+  "share.hint":
+    "Donnez accès à ce dessin à d'autres utilisateurs de l'instance. Les éditeurs peuvent le modifier, les lecteurs seulement le consulter.",
+  "share.username": "Nom d'utilisateur",
+  "share.roleEdit": "Peut modifier",
+  "share.roleView": "Peut consulter",
+  "share.add": "Partager",
+  "share.none": "Ce dessin n'est pas encore partagé.",
+  "share.remove": "Ne plus partager",
+  "history.title": "Historique des versions · « {{name}} »",
+  "history.menu": "Historique des versions",
+  "history.saveNow": "Enregistrer une version",
+  "history.hint":
+    "Une version est enregistrée automatiquement toutes les 10 minutes d'édition, et avant chaque restauration.",
+  "history.none": "Aucune version pour l'instant.",
+  "history.reasonManual": "Enregistrée manuellement",
+  "history.reasonBeforeRestore": "Avant une restauration",
+  "history.reasonApi": "Avant une modification via l'API",
+  "history.reasonAuto": "Automatique",
+  "history.elements": "{{count}} élément(s)",
+  "history.emptyVersion": "Cette version est vide.",
+  "history.previewError": "Impossible d'afficher cette version.",
+  "history.selectVersion": "Sélectionnez une version pour l'aperçu.",
+  "history.restoreHint":
+    "L'état actuel est enregistré comme version avant la restauration.",
+  "history.restoreConfirm":
+    "Restaurer cette version ? L'état actuel sera d'abord enregistré dans l'historique.",
+  "history.restore": "Restaurer cette version",
+  "admin.backups": "Sauvegardes",
+  "admin.backupsHint":
+    "La base est sauvegardée automatiquement toutes les {{hours}} h ; les {{keep}} sauvegardes automatiques les plus récentes sont conservées.",
+  "admin.backupsDisabled":
+    "Les sauvegardes automatiques sont désactivées (BACKUP_INTERVAL_HOURS=0).",
+  "admin.backupsNone": "Aucune sauvegarde pour l'instant.",
+  "admin.backupNow": "Sauvegarder maintenant",
+  "admin.backupAuto": "automatique",
+  "admin.backupManual": "manuelle",
+  "admin.backupDownload": "Télécharger",
+  "admin.backupRestore": "Restaurer",
+  "admin.backupRestoreConfirm":
+    "Restaurer la sauvegarde du {{date}} ? Toutes les données actuelles (comptes, dessins, réglages) seront remplacées par son contenu. Une sauvegarde de l'état actuel est faite avant. Le serveur va redémarrer.",
+  "admin.backupDelete": "Supprimer la sauvegarde",
+  "admin.backupDeleteConfirm": "Supprimer la sauvegarde « {{name}} » ?",
+  "admin.restoreFile": "Restaurer depuis un fichier…",
+  "admin.restoreFileConfirm":
+    "Restaurer « {{name}} » ? Toutes les données actuelles seront remplacées par le contenu de ce fichier. Une sauvegarde de l'état actuel est faite avant. Le serveur va redémarrer.",
+  "admin.restarting":
+    "Restauration en cours… Le serveur redémarre, la page va se recharger.",
+  "admin.restartTimeout":
+    "Le serveur n'est pas encore revenu. Vérifiez qu'il redémarre automatiquement (politique de redémarrage Docker, systemd…), puis rechargez la page.",
   "welcome.heading": "Vos dessins sont enregistrés sur le serveur.",
   "welcome.heading_line2":
     "Retrouvez-les dans « Mes dessins », depuis n'importe quel appareil.",

@@ -3,8 +3,145 @@
     .Dialog__content {
       display: flex;
       flex-direction: column;
-      gap: 1rem;
     }
+  }
+
+  .DrawingsDialog__layout {
+    display: flex;
+    gap: 1.5rem;
+    min-height: min(65vh, 600px);
+  }
+
+  // navigation
+  // ---------------------------------------------------------------------------
+
+  .DrawingsDialog__nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    flex: 0 0 12rem;
+    min-width: 0;
+    padding-right: 1rem;
+    border-right: 1px solid var(--dialog-border-color);
+  }
+
+  .DrawingsDialog__navItem {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    width: 100%;
+    min-width: 0;
+    padding: 0.5rem 0.625rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    text-align: start;
+    color: var(--text-primary-color);
+    background: none;
+    border: none;
+    border-radius: var(--border-radius-md);
+
+    svg {
+      flex: 0 0 1rem;
+      width: 1rem;
+      height: 1rem;
+    }
+
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    &:hover {
+      background-color: var(--button-hover-bg, var(--color-surface-high));
+    }
+
+    &.active {
+      font-weight: 600;
+      color: var(--color-primary);
+      background-color: var(--color-surface-primary-container);
+    }
+  }
+
+  .DrawingsDialog__navHeading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 1rem 0 0.25rem;
+    padding-left: 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-gray-50);
+  }
+
+  .DrawingsDialog__navEmpty {
+    margin: 0;
+    padding: 0 0.625rem;
+    font-size: 0.75rem;
+    color: var(--color-gray-50);
+  }
+
+  .DrawingsDialog__navSpacer {
+    flex: 1 1 auto;
+    min-height: 1rem;
+  }
+
+  .DrawingsDialog__folder {
+    position: relative;
+
+    &:hover .DrawingsDialog__folderActions {
+      opacity: 1;
+    }
+
+    .DrawingsDialog__navItem {
+      padding-right: 3.75rem;
+    }
+  }
+
+  .DrawingsDialog__folderActions {
+    position: absolute;
+    top: 50%;
+    right: 0.25rem;
+    display: flex;
+    transform: translateY(-50%);
+    opacity: 0;
+    transition: opacity 0.15s;
+
+    .DrawingsDialog__iconButton {
+      width: 1.75rem;
+      height: 1.75rem;
+    }
+  }
+
+  .DrawingsDialog__inlineInput {
+    min-width: 0;
+    height: 2rem;
+    padding: 0 0.5rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    color: var(--text-primary-color);
+    background-color: var(--input-bg-color);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--border-radius-md);
+    outline: none;
+  }
+
+  .DrawingsDialog__navInput {
+    width: 100%;
+    margin: 0.125rem 0;
+  }
+
+  // content
+  // ---------------------------------------------------------------------------
+
+  .DrawingsDialog__content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .DrawingsDialog__toolbar {
@@ -13,12 +150,31 @@
     gap: 0.75rem;
 
     .ExcTextField {
-      flex: 1 1 auto;
+      flex: 0 1 16rem;
+      margin-inline-start: auto;
     }
 
     .ExcButton {
       flex: 0 0 auto;
     }
+  }
+
+  .DrawingsDialog__viewTitle {
+    margin: 0;
+    font-size: 1.125rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .DrawingsDialog__toolbar > .ExcButton:only-of-type:last-child {
+    margin-inline-start: auto;
+  }
+
+  .DrawingsDialog__hint {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--color-gray-50);
   }
 
   .DrawingsDialog__error {
@@ -33,109 +189,13 @@
   .DrawingsDialog__empty {
     display: flex;
     justify-content: center;
-    padding: 2rem 0;
+    padding: 3rem 0;
     color: var(--color-gray-50);
   }
 
-  .DrawingsDialog__list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
+  .DrawingsDialog__iconButton {
     display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    max-height: 60vh;
-    overflow-y: auto;
-  }
-
-  .DrawingsDialog__row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.25rem 0.25rem 0.25rem 0;
-    border-radius: var(--border-radius-md);
-
-    &:hover {
-      background-color: var(--button-hover-bg, var(--color-surface-high));
-
-      .DrawingsDialog__actions {
-        opacity: 1;
-      }
-    }
-
-    &--current {
-      background-color: var(--color-surface-primary-container);
-
-      &:hover {
-        background-color: var(--color-surface-primary-container);
-      }
-    }
-  }
-
-  .DrawingsDialog__open {
-    flex: 1 1 auto;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.125rem;
-    padding: 0.5rem 0.75rem;
-    background: none;
-    border: none;
-    text-align: start;
-    color: var(--text-primary-color);
-    font-family: inherit;
-  }
-
-  .DrawingsDialog__name {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 1rem;
-    font-weight: 600;
-  }
-
-  .DrawingsDialog__meta {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.75rem;
-    color: var(--color-gray-50);
-  }
-
-  .DrawingsDialog__badge {
-    padding: 0 0.375rem;
-    border-radius: 999px;
-    font-weight: 600;
-    color: var(--color-on-primary-container, var(--color-primary));
-    background-color: var(--color-primary-light);
-  }
-
-  .DrawingsDialog__renameInput {
-    flex: 1 1 auto;
-    min-width: 0;
-    height: 2.5rem;
-    margin-inline-start: 0.5rem;
-    padding: 0 0.5rem;
-    font-family: inherit;
-    font-size: 1rem;
-    color: var(--text-primary-color);
-    background-color: var(--input-bg-color);
-    border: 1px solid var(--color-primary);
-    border-radius: var(--border-radius-md);
-    outline: none;
-  }
-
-  .DrawingsDialog__actions {
-    display: flex;
-    gap: 0.125rem;
-    opacity: 0.6;
-    transition: opacity 0.15s;
-  }
-
-  .DrawingsDialog__action {
-    display: flex;
+    flex: 0 0 auto;
     align-items: center;
     justify-content: center;
     width: 2rem;
@@ -154,13 +214,348 @@
     &:hover {
       background-color: var(--button-hover-bg, var(--color-surface-low));
     }
+  }
 
-    &--danger:hover {
-      color: var(--color-danger, #db6965);
+  // cards
+  // ---------------------------------------------------------------------------
+
+  .DrawingsDialog__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+    gap: 1rem;
+    margin: 0;
+    padding: 0.125rem;
+    list-style: none;
+    max-height: min(58vh, 540px);
+    overflow-y: auto;
+    align-content: start;
+  }
+
+  .DrawingCard {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--dialog-border-color);
+    border-radius: var(--border-radius-lg);
+    background-color: var(--island-bg-color);
+    transition: box-shadow 0.15s, border-color 0.15s;
+
+    &:hover {
+      box-shadow: var(--shadow-island);
+
+      .DrawingCard__star {
+        opacity: 1;
+      }
+    }
+
+    &--current {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 1px var(--color-primary);
     }
   }
 
-  .Dialog--fullscreen .DrawingsDialog__list {
-    max-height: none;
+  .DrawingCard__preview {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 4 / 3;
+    padding: 0.5rem;
+    overflow: hidden;
+    border: none;
+    border-bottom: 1px solid var(--dialog-border-color);
+    border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+    background-color: #fff;
+
+    img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+  }
+
+  // previews are rendered on a light background
+  &.theme--dark .DrawingCard__preview {
+    filter: var(--theme-filter);
+  }
+
+  .DrawingCard__placeholder svg {
+    width: 2rem;
+    height: 2rem;
+    color: var(--color-gray-30);
+  }
+
+  .DrawingCard__badge {
+    position: absolute;
+    left: 0.5rem;
+    bottom: 0.5rem;
+    padding: 0 0.375rem;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--color-surface-lowest, #fff);
+    background-color: var(--color-primary);
+  }
+
+  .DrawingCard__star {
+    position: absolute;
+    top: 0.375rem;
+    right: 0.375rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.875rem;
+    height: 1.875rem;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    color: var(--color-gray-50);
+    background-color: rgba(255, 255, 255, 0.85);
+    opacity: 0;
+    transition: opacity 0.15s;
+
+    svg {
+      width: 1.125rem;
+      height: 1.125rem;
+    }
+
+    &--active {
+      opacity: 1;
+      color: #f08c00;
+    }
+  }
+
+  .DrawingCard__footer {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 0.25rem 0.5rem 0.75rem;
+    min-width: 0;
+  }
+
+  .DrawingCard__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+
+    .DrawingsDialog__inlineInput {
+      width: 100%;
+    }
+  }
+
+  .DrawingCard__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  .DrawingCard__meta {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.6875rem;
+    color: var(--color-gray-50);
+  }
+
+  .DrawingCard__shared {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--color-primary);
+
+    svg {
+      width: 0.75rem;
+      height: 0.75rem;
+    }
+  }
+
+  .DrawingCard__menu,
+  .DrawingCard__trashActions {
+    display: flex;
+    flex-direction: column;
+
+    button {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      font-family: inherit;
+      font-size: 0.8125rem;
+      text-align: start;
+      color: var(--text-primary-color);
+      background: none;
+      border: none;
+      border-radius: var(--border-radius-md);
+
+      svg {
+        flex: 0 0 0.875rem;
+        width: 0.875rem;
+        height: 0.875rem;
+      }
+
+      &:hover {
+        background-color: var(--button-hover-bg, var(--color-surface-high));
+      }
+
+      &.active {
+        font-weight: 600;
+        color: var(--color-primary);
+      }
+
+      &.danger {
+        color: var(--color-danger, #db6965);
+      }
+    }
+  }
+
+  .DrawingCard__menu {
+    position: absolute;
+    z-index: 2;
+    top: calc(100% - 0.5rem);
+    right: 0.5rem;
+    min-width: 12rem;
+    max-height: 16rem;
+    overflow-y: auto;
+    padding: 0.25rem;
+    border: 1px solid var(--dialog-border-color);
+    border-radius: var(--border-radius-lg);
+    background-color: var(--island-bg-color);
+    box-shadow: var(--shadow-island);
+  }
+
+  .DrawingCard__trashActions {
+    padding: 0 0.25rem 0.25rem;
+  }
+
+  // sharing
+  // ---------------------------------------------------------------------------
+
+  .DrawingsDialog__panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: 36rem;
+
+    h3 {
+      margin: 0;
+      font-size: 1.125rem;
+    }
+  }
+
+  .DrawingsDialog__back {
+    align-self: flex-start;
+    padding: 0;
+    font-family: inherit;
+    font-size: 0.875rem;
+    color: var(--color-primary);
+    background: none;
+    border: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  .DrawingsDialog__shareForm {
+    display: flex;
+    gap: 0.5rem;
+
+    input {
+      flex: 1 1 auto;
+    }
+  }
+
+  .DrawingsDialog__shareForm input,
+  .DrawingsDialog__panel select {
+    height: 2.5rem;
+    padding: 0 0.75rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    color: var(--text-primary-color);
+    background-color: var(--input-bg-color);
+    border: 1px solid var(--input-border-color);
+    border-radius: var(--border-radius-md);
+    outline: none;
+
+    &:focus {
+      border-color: var(--color-primary);
+    }
+  }
+
+  .DrawingsDialog__primaryButton {
+    height: 2.5rem;
+    padding: 0 1rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-surface-lowest, #fff);
+    background-color: var(--color-primary);
+    border: none;
+    border-radius: var(--border-radius-md);
+
+    &:hover {
+      background-color: var(--color-primary-darker);
+    }
+  }
+
+  .DrawingsDialog__shares {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: var(--border-radius-md);
+
+      &:hover {
+        background-color: var(--button-hover-bg, var(--color-surface-high));
+      }
+    }
+
+    select {
+      height: 2rem;
+    }
+  }
+
+  .DrawingsDialog__shareUser {
+    flex: 1 1 auto;
+    font-weight: 600;
+  }
+
+  // small screens
+  // ---------------------------------------------------------------------------
+
+  .Dialog--fullscreen {
+    .DrawingsDialog__layout {
+      flex-direction: column;
+    }
+
+    .DrawingsDialog__nav {
+      flex-basis: auto;
+      padding: 0 0 0.75rem;
+      border-right: none;
+      border-bottom: 1px solid var(--dialog-border-color);
+    }
+
+    .DrawingsDialog__navSpacer {
+      display: none;
+    }
+
+    .DrawingsDialog__toolbar {
+      flex-wrap: wrap;
+    }
+
+    .DrawingsDialog__grid {
+      max-height: none;
+    }
   }
 }

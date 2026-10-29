@@ -8,12 +8,15 @@ Le README d'origine d'Excalidraw est conservé dans [README.upstream.md](./READM
 
 ### Se connecter
 
-L'application s'ouvre sur un écran de connexion (nom d'utilisateur et mot de passe). Au tout premier lancement, elle propose de créer le **compte administrateur**. Ensuite, selon le réglage choisi par l'administrateur, les comptes sont soit créés par lui, soit demandés depuis l'écran de connexion (« Pas encore de compte ? En demander un ») puis validés par lui : tant que la demande n'est pas validée, la connexion est refusée avec un message explicite. Votre session reste ouverte 30 jours. Si elle expire pendant que vous dessinez, une fenêtre de reconnexion s'affiche par-dessus le dessin, sans rien perdre. Pour vous déconnecter : menu ☰ > **Se déconnecter**.
+L'application s'ouvre sur un écran de connexion (nom d'utilisateur et mot de passe). Au tout premier lancement, elle propose de créer le **compte administrateur**. Ensuite, selon le réglage choisi par l'administrateur, les comptes sont soit créés par lui, soit demandés depuis l'écran de connexion (« Pas encore de compte ? En demander un ») puis validés par lui : tant que la demande n'est pas validée, la connexion est refusée avec un message explicite. Votre session reste ouverte 30 jours. Si elle expire pendant que vous dessinez, une fenêtre de reconnexion s'affiche par-dessus le dessin, sans rien perdre. Pour vous déconnecter : menu ☰ > **Se déconnecter**. Pour changer votre mot de passe : menu ☰ > **Mon compte** (vos autres sessions sont alors déconnectées).
 
 ### Vos dessins, sur le serveur
 
 - **Enregistrement automatique** : chaque modification est sauvegardée sur le serveur environ une seconde après, et à la fermeture de l'onglet. Pas de bouton « Enregistrer ».
-- **Mes dessins** (menu ☰, écran d'accueil ou palette de commandes) : la liste de tous vos dessins, avec recherche, date de dernière modification, et les actions ouvrir, renommer, dupliquer, supprimer. **Nouveau dessin** en crée un vierge.
+- **Mes dessins** (menu ☰, écran d'accueil ou palette de commandes) : vos dessins en grille, avec un **aperçu** de chacun, la recherche et la date de dernière modification. Le menu ⋯ d'un dessin permet de l'ouvrir, le renommer, le dupliquer, le déplacer, le partager ou le supprimer. **Nouveau dessin** en crée un vierge (dans le dossier affiché).
+- **Dossiers et favoris** : rangez vos dessins dans des dossiers (créés, renommés et supprimés depuis la colonne de gauche ; supprimer un dossier ne supprime pas ses dessins) et marquez les plus utilisés d'une étoile pour les retrouver dans **Favoris**.
+- **Corbeille** : un dessin supprimé part à la corbeille, d'où il peut être restauré pendant 30 jours avant d'être effacé définitivement. La corbeille peut aussi être vidée à la main.
+- **Historique des versions** (menu ☰ ou palette de commandes) : une version du dessin est enregistrée automatiquement toutes les 10 minutes d'édition, avant chaque modification faite via l'API (assistant IA) et avant chaque restauration. Vous pouvez aussi en enregistrer une à la main. Chaque version s'affiche en aperçu et peut être restaurée ; l'état actuel est conservé dans l'historique, la restauration est donc elle-même réversible. Les 100 dernières versions de chaque dessin sont gardées.
 - **Partout** : retrouvez vos dessins depuis n'importe quel appareil. Chaque dessin a sa propre adresse (`…/?drawing=…`), que vous pouvez mettre en favori.
 - **Plusieurs onglets ou appareils** : si le même dessin est modifié à deux endroits, les changements sont fusionnés au lieu de s'écraser.
 - **Images** : les images insérées sont elles aussi stockées sur le serveur.
@@ -49,6 +52,7 @@ Enregistrez des formes ou groupes de formes réutilisables dans votre bibliothè
 ### Collaborer et partager
 
 - **Collaboration en direct** (bouton de partage en haut à droite) : démarrez une session et envoyez le lien (ou le QR code) à vos collègues. Chacun voit les curseurs, les sélections et les modifications des autres en temps réel, et peut suivre la vue d'un participant. Seuls les utilisateurs connectés à votre instance peuvent rejoindre la session, qui est chiffrée de bout en bout : le serveur ne voit pas le contenu. En fin de session, le résultat est enregistré dans votre dessin, ou dans une copie si vous aviez rejoint la session de quelqu'un d'autre.
+- **Partage entre utilisateurs** (menu ⋯ d'un dessin > **Partager…**) : donnez accès à un dessin à d'autres comptes de votre instance, en **modification** ou en **lecture seule**. Le dessin apparaît dans leur rubrique **Partagés avec moi**, avec le nom de son propriétaire ; en lecture seule, il s'ouvre en mode vue. Les modifications de chacun sont enregistrées dans le même dessin (et fusionnées si deux personnes l'éditent en même temps). Le propriétaire reste seul à pouvoir renommer, partager ou supprimer le dessin ; les autres peuvent le retirer de leur liste.
 - **Lien de partage** : une copie en lecture du dessin, elle aussi chiffrée de bout en bout. La personne qui l'ouvre (après connexion) retrouve le dessin ajouté à ses propres dessins.
 
 ### Exporter et importer
@@ -78,6 +82,7 @@ Les administrateurs disposent du menu ☰ > **Administration**, qui affiche auss
 - **Inscriptions** : _fermées_ (seuls les administrateurs créent les comptes) ou _ouvertes, avec validation_ (chacun peut demander un compte, un administrateur le valide ou le refuse) ;
 - **Demandes en attente** : valider ou refuser ;
 - **Comptes** : créer un compte, réinitialiser un mot de passe (l'utilisateur est déconnecté partout), donner ou retirer les droits d'administrateur, supprimer un compte avec ses dessins. L'application garde toujours au moins un administrateur actif.
+- **Sauvegardes** : la base est sauvegardée automatiquement (toutes les 24 h par défaut, les 14 dernières sont gardées) dans `/data/backups`. L'écran liste les sauvegardes et permet d'en faire une à la demande, de les télécharger, de les supprimer et de **restaurer** l'instance, à partir d'une sauvegarde de la liste ou d'un fichier envoyé. Avant de restaurer, une sauvegarde de l'état actuel est faite ; le serveur redémarre ensuite pour appliquer la restauration, puis la page se recharge.
 
 ### Personnaliser
 
@@ -85,13 +90,20 @@ Thème clair, sombre ou selon le système, couleur de fond du canevas, plus de 4
 
 ## Installation (Docker)
 
+Une image est publiée sur le GitHub Container Registry à chaque mise à jour de `main` (`linux/amd64` et `linux/arm64`) : `ghcr.io/exe64/excalidraw-unchained:latest`. Le `docker-compose.yml` l'utilise :
+
 ```bash
-docker compose up -d --build
+docker compose pull      # récupère (ou met à jour) l'image
+docker compose up -d
 ```
+
+Pour construire l'image depuis les sources à la place : `docker compose up -d --build`. Les tags `vX.Y.Z` publient aussi les images `X.Y.Z` et `X.Y`.
 
 L'application est servie sur <http://localhost:3000>. À la première ouverture, elle demande de créer le compte administrateur. Pour le créer automatiquement à la place, définissez `ADMIN_USERNAME` et `ADMIN_PASSWORD` avant le premier démarrage. Les données sont conservées dans le volume `excalidraw-data` (`/data/excalidraw.sqlite`).
 
 En production, placez le conteneur derrière un reverse proxy HTTPS (Caddy, Traefik, nginx…) qui transmet aussi les WebSockets (`/socket.io`), et définissez `TRUST_PROXY` pour que le cookie de session reçoive le flag `Secure`.
+
+La restauration d'une sauvegarde depuis l'application arrête le serveur pour qu'il recharge la base : il doit donc être relancé automatiquement (`restart: unless-stopped` dans le `docker-compose.yml`, ou l'équivalent systemd hors Docker). Pensez aussi à copier `/data/backups` hors du serveur (les sauvegardes sont dans le même volume que la base).
 
 ## Gestion des utilisateurs
 
@@ -132,6 +144,8 @@ Le mot de passe peut aussi être passé via la variable `PASSWORD` (scripts).
 | `AI_MODEL` | `claude-opus-5-5` pour Claude | Modèle à utiliser (obligatoire pour `openai`) |
 | `AI_BASE_URL` | `https://api.openai.com/v1` pour `openai` | URL de l'API, ex. `https://api.mistral.ai/v1`, `http://ollama:11434/v1` |
 | `AI_EFFORT` | `medium` | Claude uniquement : `low`, `medium`, `high`, `xhigh`, `max` |
+| `BACKUP_INTERVAL_HOURS` | `24` | Intervalle des sauvegardes automatiques (`0` = désactivées) |
+| `BACKUP_KEEP` | `14` | Nombre de sauvegardes automatiques conservées (les manuelles ne sont jamais supprimées automatiquement) |
 | `AI_REQUESTS_PER_DAY` | `200` | Quota de requêtes IA par utilisateur et par jour (`0` = illimité) |
 
 ## Laisser Claude dessiner (serveur MCP)
@@ -200,16 +214,22 @@ excalidraw-app/          l'app web (fork d'excalidraw.com)
   data/serverStorage.ts  salles de collaboration & fichiers chiffrés (remplace Firebase)
   data/drawings.ts       client de l'API des dessins
   data/pendingOps.ts     conversion des modifications demandées via l'API (MCP)
-  components/DrawingsDialog.tsx  « Mes dessins »
-  components/AdminDialog.tsx     écran d'administration
+  components/DrawingsDialog.tsx  « Mes dessins » (dossiers, favoris, partages, corbeille)
+  components/VersionHistoryDialog.tsx  historique des versions
+  components/AccountDialog.tsx   « Mon compte »
+  components/AdminDialog.tsx     écran d'administration (comptes, sauvegardes)
 packages/                l'éditeur Excalidraw, inchangé
 server/                  Node.js + Express + Socket.IO + SQLite
-  src/app.js             API REST (auth, dessins, fichiers, bibliothèque, salles, liens)
+  src/app.js             API REST (auth, bibliothèque, salles, liens)
+  src/drawingRoutes.js   API des dessins, dossiers, partages, corbeille, fichiers
+  src/drawings.js        accès aux dessins (droits propriétaire / édition / lecture)
+  src/versions.js        historique des versions
+  src/backups.js         sauvegardes et restauration de la base
   src/collab.js          relais temps réel (protocole d'excalidraw-room), authentifié
   src/mcp.js             serveur MCP (assistants IA)
   src/ai.js              fonctions IA de l'éditeur (Claude ou API compatible OpenAI)
   src/tokens.js          jetons d'accès personnels
-  src/admin.js           administration (inscriptions, comptes)
+  src/admin.js           administration (inscriptions, comptes, sauvegardes)
   src/settings.js        réglages de l'instance
   src/cli.js             gestion des utilisateurs
 ```

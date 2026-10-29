@@ -1,0 +1,179 @@
+.excalidraw {
+  .VersionHistory__layout {
+    display: flex;
+    gap: 1.5rem;
+    min-height: min(65vh, 600px);
+  }
+
+  .VersionHistory__sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 0 0 16rem;
+    min-width: 0;
+    padding-right: 1rem;
+    border-right: 1px solid var(--dialog-border-color);
+  }
+
+  .VersionHistory__hint {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--color-gray-50);
+  }
+
+  .VersionHistory__save,
+  .VersionHistory__restore {
+    height: 2.5rem;
+    padding: 0 1rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: var(--border-radius-md);
+
+    &:disabled {
+      opacity: 0.6;
+    }
+  }
+
+  .VersionHistory__save {
+    color: var(--color-primary);
+    background-color: var(--island-bg-color);
+    border: 1px solid var(--color-primary);
+
+    &:hover {
+      background-color: var(--color-surface-primary-container);
+    }
+  }
+
+  .VersionHistory__restore {
+    color: var(--color-surface-lowest, #fff);
+    background-color: var(--color-primary);
+    border: none;
+
+    &:hover {
+      background-color: var(--color-primary-darker);
+    }
+  }
+
+  .VersionHistory__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    max-height: min(52vh, 480px);
+    overflow-y: auto;
+
+    button {
+      display: flex;
+      flex-direction: column;
+      gap: 0.125rem;
+      width: 100%;
+      padding: 0.5rem 0.625rem;
+      font-family: inherit;
+      text-align: start;
+      color: var(--text-primary-color);
+      background: none;
+      border: none;
+      border-radius: var(--border-radius-md);
+
+      &:hover {
+        background-color: var(--button-hover-bg, var(--color-surface-high));
+      }
+
+      &.active {
+        background-color: var(--color-surface-primary-container);
+      }
+    }
+  }
+
+  .VersionHistory__date {
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  .VersionHistory__meta {
+    font-size: 0.75rem;
+    color: var(--color-gray-50);
+  }
+
+  .VersionHistory__main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .VersionHistory__preview {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 auto;
+    min-height: 20rem;
+    max-height: min(56vh, 520px);
+    overflow: hidden;
+    border: 1px solid var(--dialog-border-color);
+    border-radius: var(--border-radius-lg);
+    background-color: #fff;
+    color: var(--color-gray-50);
+  }
+
+  &.theme--dark .VersionHistory__preview {
+    filter: var(--theme-filter);
+  }
+
+  .VersionHistory__svg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 1rem;
+    box-sizing: border-box;
+
+    svg {
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    &--hidden {
+      position: absolute;
+      visibility: hidden;
+    }
+  }
+
+  .VersionHistory__actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .VersionHistory__error {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: var(--border-radius-md);
+    color: var(--color-danger-text, #db6965);
+    background-color: var(--color-danger-background, #fff0f0);
+  }
+
+  .Dialog--fullscreen {
+    .VersionHistory__layout {
+      flex-direction: column;
+    }
+
+    .VersionHistory__sidebar {
+      flex-basis: auto;
+      padding: 0 0 0.75rem;
+      border-right: none;
+      border-bottom: 1px solid var(--dialog-border-color);
+    }
+
+    .VersionHistory__list {
+      max-height: 12rem;
+    }
+  }
+}
