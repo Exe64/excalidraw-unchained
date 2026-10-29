@@ -18,10 +18,10 @@ if (countUsers(db) === 0) {
       isAdmin: true,
     });
     console.log(`Created admin user "${config.adminUsername}".`);
-  } else if (!config.allowRegistration) {
+  } else {
     console.warn(
-      "No user exists yet. Set ADMIN_USERNAME and ADMIN_PASSWORD, enable " +
-        "ALLOW_REGISTRATION, or run `yarn --cwd server users add <username>`.",
+      "No user exists yet: open the app to create the administrator account " +
+        "(or set ADMIN_USERNAME and ADMIN_PASSWORD).",
     );
   }
 }

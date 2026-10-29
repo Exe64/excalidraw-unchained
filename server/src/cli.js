@@ -4,6 +4,7 @@
 //   node src/cli.js list
 //   node src/cli.js add <username> [--admin]      (password prompted, or $PASSWORD)
 //   node src/cli.js passwd <username>             (password prompted, or $PASSWORD)
+//   node src/cli.js approve <username>            (account waiting for approval)
 //   node src/cli.js delete <username>             (also deletes their drawings)
 
 import readline from "node:readline";
@@ -47,7 +48,7 @@ const askPassword = async () => {
 
 const usage = () => {
   console.log(
-    "Usage: cli.js list | add <username> [--admin] | passwd <username> | delete <username>",
+    "Usage: cli.js list | add <username> [--admin] | passwd <username> | approve <username> | delete <username>",
   );
   process.exit(1);
 };
@@ -68,7 +69,7 @@ const main = async () => {
     case "list": {
       const rows = db
         .prepare(
-          `SELECT users.username, users.is_admin, users.created_at,
+          `SELECT users.username, users.is_admin, users.status, users.created_at,
              (SELECT COUNT(*) FROM drawings WHERE owner_id = users.id) AS drawings
            FROM users ORDER BY users.created_at`,
         )
@@ -77,10 +78,19 @@ const main = async () => {
         rows.map((row) => ({
           username: row.username,
           admin: !!row.is_admin,
+          status: row.status,
           drawings: row.drawings,
           created: new Date(row.created_at).toISOString(),
         })),
       );
+      break;
+    }
+    case "approve": {
+      const user = requireUser();
+      db.prepare("UPDATE users SET status = 'active' WHERE id = ?").run(
+        user.id,
+      );
+      console.log(`User "${user.username}" approved.`);
       break;
     }
     case "add": {

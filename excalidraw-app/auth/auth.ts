@@ -5,8 +5,11 @@ export type User = {
   id: string;
   username: string;
   isAdmin: boolean;
+  status: "active" | "pending";
   createdAt: number;
 };
+
+export type RegistrationMode = "closed" | "approval";
 
 /** the signed-in user (null until authenticated) */
 export const currentUserAtom = atom<User | null>(null);
@@ -27,7 +30,20 @@ export const fetchCurrentUser = async (): Promise<User | null> => {
 };
 
 export const fetchAuthConfig = () =>
-  apiRequest<{ allowRegistration: boolean }>("GET", "/auth/config");
+  apiRequest<{
+    registrationMode: RegistrationMode;
+    allowRegistration: boolean;
+    /** no account exists yet: the first one is the administrator */
+    needsSetup: boolean;
+  }>("GET", "/auth/config");
+
+/** creates the administrator account, on first launch */
+export const setup = async (username: string, password: string) => {
+  const { user } = await apiRequest<{ user: User }>("POST", "/auth/setup", {
+    json: { username, password },
+  });
+  return user;
+};
 
 export const login = async (username: string, password: string) => {
   const { user } = await apiRequest<{ user: User }>("POST", "/auth/login", {
@@ -36,12 +52,11 @@ export const login = async (username: string, password: string) => {
   return user;
 };
 
-export const register = async (username: string, password: string) => {
-  const { user } = await apiRequest<{ user: User }>("POST", "/auth/register", {
+/** requests an account, which an administrator then has to approve */
+export const register = (username: string, password: string) =>
+  apiRequest<{ pending: true }>("POST", "/auth/register", {
     json: { username, password },
   });
-  return user;
-};
 
 export const logout = () => apiRequest("POST", "/auth/logout");
 

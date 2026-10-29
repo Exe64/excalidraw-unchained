@@ -57,6 +57,7 @@ export const toPublicUser = (row) =>
     id: row.id,
     username: row.username,
     isAdmin: !!row.is_admin,
+    status: row.status || "active",
     createdAt: row.created_at,
   };
 
@@ -70,7 +71,10 @@ export const validateCredentials = (username, password) => {
   return null;
 };
 
-export const createUser = async (db, { username, password, isAdmin }) => {
+export const createUser = async (
+  db,
+  { username, password, isAdmin, status = "active" },
+) => {
   const error = validateCredentials(username, password);
   if (error) {
     throw new Error(error);
@@ -83,14 +87,18 @@ export const createUser = async (db, { username, password, isAdmin }) => {
     username,
     password_hash: await hashPassword(password),
     is_admin: isAdmin ? 1 : 0,
+    status,
     created_at: Date.now(),
   };
   db.prepare(
-    `INSERT INTO users (id, username, password_hash, is_admin, created_at)
-     VALUES (:id, :username, :password_hash, :is_admin, :created_at)`,
+    `INSERT INTO users (id, username, password_hash, is_admin, status, created_at)
+     VALUES (:id, :username, :password_hash, :is_admin, :status, :created_at)`,
   ).run(user);
   return user;
 };
+
+export const getUserById = (db, id) =>
+  db.prepare("SELECT * FROM users WHERE id = ?").get(id);
 
 export const getUserByUsername = (db, username) =>
   db.prepare("SELECT * FROM users WHERE username = ?").get(username);
@@ -134,7 +142,8 @@ export const getSessionUser = (db, token) => {
     .prepare(
       `SELECT users.* FROM sessions
        JOIN users ON users.id = sessions.user_id
-       WHERE sessions.token_hash = ? AND sessions.expires_at > ?`,
+       WHERE sessions.token_hash = ? AND sessions.expires_at > ?
+         AND users.status = 'active'`,
     )
     .get(hashToken(token), Date.now());
   return row || null;

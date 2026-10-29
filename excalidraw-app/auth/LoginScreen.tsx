@@ -8,7 +8,7 @@ import Spinner from "@excalidraw/excalidraw/components/Spinner";
 import { useUnchainedI18n } from "../app-language/unchained-i18n";
 import { STORAGE_KEYS } from "../app_constants";
 
-import { fetchAuthConfig, login, register } from "./auth";
+import { fetchAuthConfig, login, register, setup } from "./auth";
 
 import "./LoginScreen.scss";
 
@@ -41,20 +41,26 @@ export const LoginScreen = ({
   message?: string;
 }) => {
   const { t } = useUnchainedI18n();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "setup">("login");
   const [allowRegistration, setAllowRegistration] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [theme] = useState(getInitialTheme);
 
   useEffect(() => {
     fetchAuthConfig()
-      .then((config) => setAllowRegistration(config.allowRegistration))
+      .then((config) => {
+        setAllowRegistration(config.allowRegistration);
+        if (config.needsSetup && !isOverlay) {
+          setMode("setup");
+        }
+      })
       .catch(() => {});
-  }, []);
+  }, [isOverlay]);
 
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -62,20 +68,32 @@ export const LoginScreen = ({
       return;
     }
     setError(null);
-    if (mode === "register" && password !== passwordConfirm) {
+    setNotice(null);
+    if (mode !== "login" && password !== passwordConfirm) {
       setError(t("auth.passwordMismatch"));
       return;
     }
     setIsSubmitting(true);
     try {
+      if (mode === "register") {
+        await register(username.trim(), password);
+        setMode("login");
+        setPassword("");
+        setPasswordConfirm("");
+        setNotice(t("auth.registered"));
+        setIsSubmitting(false);
+        return;
+      }
       const user =
-        mode === "login"
-          ? await login(username.trim(), password)
-          : await register(username.trim(), password);
+        mode === "setup"
+          ? await setup(username.trim(), password)
+          : await login(username.trim(), password);
       onAuthenticated(user);
     } catch (error: any) {
       setError(
-        error.status === 401
+        error.data?.code === "pending"
+          ? t("auth.pending")
+          : error.status === 401
           ? t("auth.invalidCredentials")
           : error.status === 429
           ? t("auth.tooManyAttempts")
@@ -97,9 +115,24 @@ export const LoginScreen = ({
       <form className="unchained-auth__card" onSubmit={onSubmit}>
         <ExcalidrawLogo withText size="normal" />
         <h1 className="unchained-auth__title">
-          {mode === "login" ? t("auth.title") : t("auth.registerTitle")}
+          {mode === "login"
+            ? t("auth.title")
+            : mode === "setup"
+            ? t("auth.setupTitle")
+            : t("auth.registerTitle")}
         </h1>
+        {mode === "setup" && (
+          <p className="unchained-auth__message">{t("auth.setupHint")}</p>
+        )}
+        {mode === "register" && (
+          <p className="unchained-auth__message">{t("auth.registerHint")}</p>
+        )}
         {message && <p className="unchained-auth__message">{message}</p>}
+        {notice && (
+          <div className="unchained-auth__notice" role="status">
+            {notice}
+          </div>
+        )}
         <label className="unchained-auth__field">
           <span>{t("auth.username")}</span>
           <input
@@ -127,7 +160,7 @@ export const LoginScreen = ({
             onChange={(event) => setPassword(event.target.value)}
           />
         </label>
-        {mode === "register" && (
+        {mode !== "login" && (
           <label className="unchained-auth__field">
             <span>{t("auth.passwordConfirm")}</span>
             <input
@@ -154,17 +187,20 @@ export const LoginScreen = ({
             <Spinner />
           ) : mode === "login" ? (
             t("auth.signIn")
+          ) : mode === "setup" ? (
+            t("auth.setupSubmit")
           ) : (
             t("auth.signUp")
           )}
         </button>
-        {allowRegistration && !isOverlay && (
+        {allowRegistration && !isOverlay && mode !== "setup" && (
           <button
             type="button"
             className="unchained-auth__switch"
             onClick={() => {
               setMode(mode === "login" ? "register" : "login");
               setError(null);
+              setNotice(null);
             }}
           >
             {mode === "login" ? t("auth.toSignUp") : t("auth.toSignIn")}

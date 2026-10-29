@@ -12,13 +12,13 @@ import { appLangCodeAtom } from "./language-state";
 
 const en = {
   "auth.title": "Sign in to continue",
-  "auth.registerTitle": "Create an account",
+  "auth.registerTitle": "Request an account",
   "auth.username": "Username",
   "auth.password": "Password",
   "auth.passwordConfirm": "Confirm password",
   "auth.signIn": "Sign in",
-  "auth.signUp": "Create account",
-  "auth.toSignUp": "No account yet? Sign up",
+  "auth.signUp": "Request an account",
+  "auth.toSignUp": "No account yet? Request one",
   "auth.toSignIn": "Already have an account? Sign in",
   "auth.passwordMismatch": "Passwords don't match.",
   "auth.invalidCredentials": "Wrong username or password.",
@@ -58,6 +58,41 @@ const en = {
     "Changes made through the API (AI assistant) were applied.",
   "drawings.opsFailed":
     "Some changes made through the API couldn't be applied: {{error}}",
+  "auth.setupTitle": "Create the administrator account",
+  "auth.setupHint":
+    "Welcome! This first account will administer the application: it manages registrations and the other accounts.",
+  "auth.setupSubmit": "Create the account",
+  "auth.registerHint":
+    "Your account will be usable once an administrator approves it.",
+  "auth.registered":
+    "Request sent. You'll be able to sign in once an administrator approves your account.",
+  "auth.pending": "Your account is waiting for an administrator's approval.",
+  "admin.title": "Administration",
+  "admin.menu": "Administration",
+  "admin.registration": "Registrations",
+  "admin.modeClosed": "Closed",
+  "admin.modeClosedHint":
+    "Nobody can sign up: administrators create the accounts below.",
+  "admin.modeApproval": "Open, with approval",
+  "admin.modeApprovalHint":
+    "Anyone can request an account from the sign-in screen; an administrator approves or rejects each request.",
+  "admin.pending": "Waiting for approval",
+  "admin.users": "Accounts",
+  "admin.createUser": "Create an account",
+  "admin.create": "Create",
+  "admin.approve": "Approve",
+  "admin.reject": "Reject",
+  "admin.isAdmin": "Administrator",
+  "admin.adminBadge": "admin",
+  "admin.you": "you",
+  "admin.userMeta": "Created {{date}} · {{count}} drawing(s)",
+  "admin.resetPassword": "Reset password",
+  "admin.newPassword": "New password",
+  "admin.save": "Save",
+  "admin.cancel": "Cancel",
+  "admin.delete": "Delete the account",
+  "admin.deleteConfirm":
+    'Delete the account "{{name}}" and all its drawings? This can\'t be undone.',
   "api.title": "API access (MCP)",
   "api.intro":
     "Access tokens let an AI assistant such as Claude, or a script, read and create your drawings through the MCP server of this instance. A token gives access to all your drawings: keep it secret and revoke it when you no longer need it.",
@@ -89,13 +124,13 @@ type Key = keyof typeof en;
 
 const fr: Partial<Record<Key, string>> = {
   "auth.title": "Connectez-vous pour continuer",
-  "auth.registerTitle": "Créer un compte",
+  "auth.registerTitle": "Demander un compte",
   "auth.username": "Nom d'utilisateur",
   "auth.password": "Mot de passe",
   "auth.passwordConfirm": "Confirmer le mot de passe",
   "auth.signIn": "Se connecter",
-  "auth.signUp": "Créer le compte",
-  "auth.toSignUp": "Pas encore de compte ? S'inscrire",
+  "auth.signUp": "Demander un compte",
+  "auth.toSignUp": "Pas encore de compte ? En demander un",
   "auth.toSignIn": "Déjà un compte ? Se connecter",
   "auth.passwordMismatch": "Les mots de passe ne correspondent pas.",
   "auth.invalidCredentials": "Nom d'utilisateur ou mot de passe incorrect.",
@@ -139,6 +174,41 @@ const fr: Partial<Record<Key, string>> = {
     "Les modifications faites via l'API (assistant IA) ont été appliquées.",
   "drawings.opsFailed":
     "Certaines modifications faites via l'API n'ont pas pu être appliquées : {{error}}",
+  "auth.setupTitle": "Créer le compte administrateur",
+  "auth.setupHint":
+    "Bienvenue ! Ce premier compte administrera l'application : il gère les inscriptions et les autres comptes.",
+  "auth.setupSubmit": "Créer le compte",
+  "auth.registerHint":
+    "Votre compte sera utilisable une fois validé par un administrateur.",
+  "auth.registered":
+    "Demande envoyée. Vous pourrez vous connecter dès qu'un administrateur aura validé votre compte.",
+  "auth.pending": "Votre compte attend la validation d'un administrateur.",
+  "admin.title": "Administration",
+  "admin.menu": "Administration",
+  "admin.registration": "Inscriptions",
+  "admin.modeClosed": "Fermées",
+  "admin.modeClosedHint":
+    "Personne ne peut s'inscrire : les administrateurs créent les comptes ci-dessous.",
+  "admin.modeApproval": "Ouvertes, avec validation",
+  "admin.modeApprovalHint":
+    "Chacun peut demander un compte depuis l'écran de connexion ; un administrateur valide ou refuse chaque demande.",
+  "admin.pending": "En attente de validation",
+  "admin.users": "Comptes",
+  "admin.createUser": "Créer un compte",
+  "admin.create": "Créer",
+  "admin.approve": "Valider",
+  "admin.reject": "Refuser",
+  "admin.isAdmin": "Administrateur",
+  "admin.adminBadge": "admin",
+  "admin.you": "vous",
+  "admin.userMeta": "Créé le {{date}} · {{count}} dessin(s)",
+  "admin.resetPassword": "Réinitialiser le mot de passe",
+  "admin.newPassword": "Nouveau mot de passe",
+  "admin.save": "Enregistrer",
+  "admin.cancel": "Annuler",
+  "admin.delete": "Supprimer le compte",
+  "admin.deleteConfirm":
+    "Supprimer le compte « {{name}} » et tous ses dessins ? Cette action est irréversible.",
   "api.title": "Accès API (MCP)",
   "api.intro":
     "Les jetons d'accès permettent à un assistant IA comme Claude, ou à un script, de lire et de créer vos dessins via le serveur MCP de cette instance. Un jeton donne accès à tous vos dessins : gardez-le secret et révoquez-le dès qu'il ne sert plus.",

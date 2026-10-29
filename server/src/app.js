@@ -7,6 +7,7 @@ import express from "express";
 import {
   clearSessionCookie,
   createSession,
+  countUsers,
   createUser,
   deleteSession,
   deleteUserSessions,
@@ -23,6 +24,7 @@ import {
   verifyPassword,
 } from "./auth.js";
 import { diagramToCodeHandler, getAiInfo, textToDiagramHandler } from "./ai.js";
+import { registerAdminRoutes } from "./admin.js";
 import { config } from "./config.js";
 import { transaction } from "./db.js";
 import {
@@ -33,6 +35,7 @@ import {
   toDrawing,
   toDrawingSummary,
 } from "./drawings.js";
+import { getRegistrationMode } from "./settings.js";
 import { createMcpRouter } from "./mcp.js";
 import {
   createApiToken,
@@ -131,7 +134,29 @@ export const createApp = (db) => {
   };
 
   api.get("/auth/config", (req, res) => {
-    res.json({ allowRegistration: config.allowRegistration });
+    const registrationMode = getRegistrationMode(db);
+    res.json({
+      registrationMode,
+      allowRegistration: registrationMode !== "closed",
+      // no account yet: the first one to be created is the administrator
+      needsSetup: countUsers(db) === 0,
+    });
+  });
+
+  api.post("/auth/setup", async (req, res) => {
+    const { username, password } = req.body || {};
+    const user = await (async () => {
+      if (countUsers(db) > 0) {
+        throw new HttpError(403, "L'application est déjà configurée.");
+      }
+      try {
+        return await createUser(db, { username, password, isAdmin: true });
+      } catch (error) {
+        throw new HttpError(400, error.message);
+      }
+    })();
+    setSessionCookie(req, res, createSession(db, user.id));
+    res.status(201).json({ user: toPublicUser(user) });
   });
 
   api.get("/auth/me", authenticate, (req, res) => {
@@ -164,23 +189,43 @@ export const createApp = (db) => {
     }
     resetLoginAttempts(throttleKey);
 
+    if (user.status === "pending") {
+      throw new HttpError(
+        403,
+        "Votre compte attend la validation d'un administrateur.",
+        { code: "pending" },
+      );
+    }
+
     setSessionCookie(req, res, createSession(db, user.id));
     res.json({ user: toPublicUser(user) });
   });
 
   api.post("/auth/register", async (req, res) => {
-    if (!config.allowRegistration) {
+    if (getRegistrationMode(db) === "closed") {
       throw new HttpError(403, "Les inscriptions sont désactivées.");
     }
+    const throttleKey = `register|${req.ip}`;
+    if (getLoginRetryAfter(throttleKey)) {
+      throw new HttpError(
+        429,
+        "Trop de demandes d'inscription. Réessayez plus tard.",
+      );
+    }
+    registerFailedLogin(throttleKey);
     const { username, password } = req.body || {};
-    let user;
     try {
-      user = await createUser(db, { username, password, isAdmin: false });
+      // the account can be used once an administrator approves it
+      await createUser(db, {
+        username,
+        password,
+        isAdmin: false,
+        status: "pending",
+      });
     } catch (error) {
       throw new HttpError(400, error.message);
     }
-    setSessionCookie(req, res, createSession(db, user.id));
-    res.status(201).json({ user: toPublicUser(user) });
+    res.status(202).json({ pending: true });
   });
 
   api.post("/auth/logout", (req, res) => {
@@ -209,6 +254,8 @@ export const createApp = (db) => {
 
   // everything below requires an authenticated user
   api.use(authenticate);
+
+  registerAdminRoutes(api, { db, HttpError, requireSession });
 
   // drawings
   // ---------------------------------------------------------------------------

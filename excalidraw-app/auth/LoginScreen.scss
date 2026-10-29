@@ -104,6 +104,14 @@
     background-color: var(--color-danger-background, #fff0f0);
   }
 
+  .unchained-auth__notice {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: var(--border-radius-md, 0.5rem);
+    color: var(--text-primary-color);
+    background-color: var(--color-surface-primary-container, #e0dfff);
+  }
+
   .unchained-auth__submit {
     display: flex;
     align-items: center;

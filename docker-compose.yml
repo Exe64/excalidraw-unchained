@@ -7,11 +7,10 @@ services:
       - "3000:80"
     restart: unless-stopped
     environment:
-      # first account, created on first start if no user exists yet
-      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?set ADMIN_PASSWORD (min. 8 characters)}
-      # let anyone create an account from the login screen
-      - ALLOW_REGISTRATION=${ALLOW_REGISTRATION:-false}
+      # optional: creates the administrator account on first start. Without
+      # it, the app asks to create it the first time it's opened.
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
       # behind an HTTPS reverse proxy, trust its X-Forwarded-* headers so that
       # the session cookie gets the Secure flag
       - TRUST_PROXY=${TRUST_PROXY:-loopback}

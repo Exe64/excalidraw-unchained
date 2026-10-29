@@ -107,6 +107,11 @@ import {
   ApiAccessDialog,
   apiAccessDialogOpenAtom,
 } from "./components/ApiAccessDialog";
+import {
+  AdminDialog,
+  adminDialogOpenAtom,
+  refreshPendingUsersCount,
+} from "./components/AdminDialog";
 
 import {
   exportToBackend,
@@ -470,6 +475,16 @@ const ExcalidrawWrapper = () => {
 
   const [, setDrawingsDialogOpen] = useAtom(drawingsDialogOpenAtom);
   const [, setApiAccessDialogOpen] = useAtom(apiAccessDialogOpenAtom);
+  const [isAdminDialogOpen, setAdminDialogOpen] = useAtom(adminDialogOpenAtom);
+
+  // administrators see the number of accounts waiting for approval
+  useEffect(() => {
+    if (!isAdminDialogOpen) {
+      refreshPendingUsersCount();
+    }
+    const interval = window.setInterval(refreshPendingUsersCount, 5 * 60e3);
+    return () => window.clearInterval(interval);
+  }, [isAdminDialogOpen]);
 
   const [, forceRefresh] = useState(false);
 
@@ -1115,6 +1130,7 @@ const ExcalidrawWrapper = () => {
           onNewDrawing={() => openDrawing(null).catch(onDrawingError)}
           onLogout={onLogout}
           onApiAccessDialogOpen={() => setApiAccessDialogOpen(true)}
+          onAdminDialogOpen={() => setAdminDialogOpen(true)}
         />
         <AppWelcomeScreen
           onCollabDialogOpen={onCollabDialogOpen}
@@ -1126,6 +1142,7 @@ const ExcalidrawWrapper = () => {
           <OverwriteConfirmDialog.Actions.SaveToDisk />
         </OverwriteConfirmDialog>
         <ApiAccessDialog />
+        <AdminDialog />
         <DrawingsDialog
           onOpenDrawing={(id) => openDrawing(id)}
           onNewDrawing={() => openDrawing(null)}

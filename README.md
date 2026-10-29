@@ -8,7 +8,7 @@ Le README d'origine d'Excalidraw est conservé dans [README.upstream.md](./READM
 
 ### Se connecter
 
-L'application s'ouvre sur un écran de connexion (nom d'utilisateur et mot de passe). Les comptes sont créés par l'administrateur ; l'inscription libre peut être activée si besoin. Votre session reste ouverte 30 jours. Si elle expire pendant que vous dessinez, une fenêtre de reconnexion s'affiche par-dessus le dessin, sans rien perdre. Pour vous déconnecter : menu ☰ > **Se déconnecter**.
+L'application s'ouvre sur un écran de connexion (nom d'utilisateur et mot de passe). Au tout premier lancement, elle propose de créer le **compte administrateur**. Ensuite, selon le réglage choisi par l'administrateur, les comptes sont soit créés par lui, soit demandés depuis l'écran de connexion (« Pas encore de compte ? En demander un ») puis validés par lui : tant que la demande n'est pas validée, la connexion est refusée avec un message explicite. Votre session reste ouverte 30 jours. Si elle expire pendant que vous dessinez, une fenêtre de reconnexion s'affiche par-dessus le dessin, sans rien perdre. Pour vous déconnecter : menu ☰ > **Se déconnecter**.
 
 ### Vos dessins, sur le serveur
 
@@ -71,6 +71,14 @@ Connectez Claude (ou un autre assistant compatible MCP) à votre instance, puis 
 
 Pour le connecter : menu ☰ > **Accès API (MCP)**, créez un jeton et copiez la configuration proposée (voir [Laisser Claude dessiner](#laisser-claude-dessiner-serveur-mcp)). Votre abonnement Claude suffit : aucune clé d'API n'est nécessaire.
 
+### Administrer
+
+Les administrateurs disposent du menu ☰ > **Administration**, qui affiche aussi le nombre de demandes de compte en attente :
+
+- **Inscriptions** : _fermées_ (seuls les administrateurs créent les comptes) ou _ouvertes, avec validation_ (chacun peut demander un compte, un administrateur le valide ou le refuse) ;
+- **Demandes en attente** : valider ou refuser ;
+- **Comptes** : créer un compte, réinitialiser un mot de passe (l'utilisateur est déconnecté partout), donner ou retirer les droits d'administrateur, supprimer un compte avec ses dessins. L'application garde toujours au moins un administrateur actif.
+
 ### Personnaliser
 
 Thème clair, sombre ou selon le système, couleur de fond du canevas, plus de 40 langues, préférences d'affichage. L'application peut aussi être installée comme une application de bureau ou mobile (PWA).
@@ -78,22 +86,23 @@ Thème clair, sombre ou selon le système, couleur de fond du canevas, plus de 4
 ## Installation (Docker)
 
 ```bash
-ADMIN_PASSWORD='un-mot-de-passe-solide' docker compose up -d --build
+docker compose up -d --build
 ```
 
-L'application est servie sur <http://localhost:3000>. Au premier démarrage, le compte `admin` (ou `ADMIN_USERNAME`) est créé avec `ADMIN_PASSWORD`. Les données sont conservées dans le volume `excalidraw-data` (`/data/excalidraw.sqlite`).
+L'application est servie sur <http://localhost:3000>. À la première ouverture, elle demande de créer le compte administrateur. Pour le créer automatiquement à la place, définissez `ADMIN_USERNAME` et `ADMIN_PASSWORD` avant le premier démarrage. Les données sont conservées dans le volume `excalidraw-data` (`/data/excalidraw.sqlite`).
 
 En production, placez le conteneur derrière un reverse proxy HTTPS (Caddy, Traefik, nginx…) qui transmet aussi les WebSockets (`/socket.io`), et définissez `TRUST_PROXY` pour que le cookie de session reçoive le flag `Secure`.
 
 ## Gestion des utilisateurs
 
-Par défaut, l'inscription depuis l'écran de connexion est désactivée. Les comptes se gèrent en ligne de commande :
+Les comptes et le mode d'inscription se gèrent depuis l'application (menu ☰ > **Administration**, voir [Administrer](#administrer)). Par défaut, les inscriptions sont fermées. La ligne de commande reste disponible, par exemple pour dépanner :
 
 ```bash
 # dans le conteneur
 docker compose exec excalidraw node src/cli.js add alice          # mot de passe demandé
 docker compose exec excalidraw node src/cli.js add bob --admin
 docker compose exec excalidraw node src/cli.js passwd alice        # déconnecte ses sessions
+docker compose exec excalidraw node src/cli.js approve alice       # valide une demande de compte
 docker compose exec excalidraw node src/cli.js delete alice        # supprime aussi ses dessins
 docker compose exec excalidraw node src/cli.js list
 
@@ -110,8 +119,8 @@ Le mot de passe peut aussi être passé via la variable `PASSWORD` (scripts).
 | `PORT` / `HOST` | `3005` / `0.0.0.0` | Adresse d'écoute (`80` dans l'image Docker) |
 | `DATA_DIR` | `server/data` | Dossier de la base SQLite (`/data` dans l'image Docker) |
 | `STATIC_DIR` | `excalidraw-app/build` s'il existe | Frontend compilé à servir |
-| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | – | Compte créé au démarrage si aucun utilisateur n'existe |
-| `ALLOW_REGISTRATION` | `false` | Autorise la création de compte depuis l'écran de connexion |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | – | Compte administrateur créé au démarrage si aucun utilisateur n'existe (sinon, l'application propose de le créer) |
+| `ALLOW_REGISTRATION` | `false` | Mode d'inscription initial : `true` = ouvertes avec validation. Ensuite, c'est le réglage de l'écran Administration qui s'applique |
 | `SESSION_TTL_DAYS` | `30` | Durée de validité des sessions |
 | `COOKIE_SECURE` | `auto` | `auto` (selon HTTPS), `true` ou `false` |
 | `TRUST_PROXY` | `loopback` | Valeur de [`trust proxy`](https://expressjs.com/en/guide/behind-proxies.html) d'Express |
@@ -192,6 +201,7 @@ excalidraw-app/          l'app web (fork d'excalidraw.com)
   data/drawings.ts       client de l'API des dessins
   data/pendingOps.ts     conversion des modifications demandées via l'API (MCP)
   components/DrawingsDialog.tsx  « Mes dessins »
+  components/AdminDialog.tsx     écran d'administration
 packages/                l'éditeur Excalidraw, inchangé
 server/                  Node.js + Express + Socket.IO + SQLite
   src/app.js             API REST (auth, dessins, fichiers, bibliothèque, salles, liens)
@@ -199,6 +209,8 @@ server/                  Node.js + Express + Socket.IO + SQLite
   src/mcp.js             serveur MCP (assistants IA)
   src/ai.js              fonctions IA de l'éditeur (Claude ou API compatible OpenAI)
   src/tokens.js          jetons d'accès personnels
+  src/admin.js           administration (inscriptions, comptes)
+  src/settings.js        réglages de l'instance
   src/cli.js             gestion des utilisateurs
 ```
 

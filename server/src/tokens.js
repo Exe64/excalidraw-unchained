@@ -62,7 +62,7 @@ export const getApiTokenUser = (db, token) => {
     .prepare(
       `SELECT users.*, api_tokens.id AS api_token_id FROM api_tokens
        JOIN users ON users.id = api_tokens.user_id
-       WHERE api_tokens.token_hash = ?`,
+       WHERE api_tokens.token_hash = ? AND users.status = 'active'`,
     )
     .get(hashToken(token));
   if (!row) {

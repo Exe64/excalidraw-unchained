@@ -65,6 +65,12 @@ CREATE TABLE IF NOT EXISTS share_links (
   created_at INTEGER NOT NULL
 );
 
+-- instance settings, managed by administrators
+CREATE TABLE IF NOT EXISTS settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
 -- personal access tokens (API / MCP clients such as Claude)
 CREATE TABLE IF NOT EXISTS api_tokens (
   id           TEXT PRIMARY KEY,
@@ -95,6 +101,12 @@ const hasColumn = (db, table, column) =>
 
 /** schema changes for databases created by earlier versions */
 const migrate = (db) => {
+  if (!hasColumn(db, "users", "status")) {
+    // "active", or "pending" until an administrator approves the account
+    db.exec(
+      "ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active'",
+    );
+  }
   if (!hasColumn(db, "drawings", "pending_ops")) {
     // changes requested through the API (e.g. by an AI assistant over MCP),
     // converted to elements by the editor the next time it opens the drawing

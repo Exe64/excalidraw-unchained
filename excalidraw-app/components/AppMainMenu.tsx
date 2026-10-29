@@ -2,6 +2,7 @@ import {
   LoadIcon,
   PlusIcon,
   brainIcon,
+  settingsIcon,
   eyeIcon,
 } from "@excalidraw/excalidraw/components/icons";
 import { MainMenu } from "@excalidraw/excalidraw/index";
@@ -15,6 +16,8 @@ import { LanguageList } from "../app-language/LanguageList";
 import { useUnchainedI18n } from "../app-language/unchained-i18n";
 import { useAtomValue } from "../app-jotai";
 import { currentUserAtom } from "../auth/auth";
+
+import { pendingUsersCountAtom } from "./AdminDialog";
 
 import { saveDebugState } from "./DebugCanvas";
 
@@ -44,9 +47,11 @@ export const AppMainMenu: React.FC<{
   onNewDrawing: () => void;
   onLogout: () => void;
   onApiAccessDialogOpen: () => void;
+  onAdminDialogOpen: () => void;
 }> = React.memo((props) => {
   const { t: tu } = useUnchainedI18n();
   const user = useAtomValue(currentUserAtom);
+  const pendingUsersCount = useAtomValue(pendingUsersCountAtom);
   return (
     <MainMenu>
       <MainMenu.Item icon={LoadIcon} onSelect={props.onDrawingsDialogOpen}>
@@ -72,6 +77,18 @@ export const AppMainMenu: React.FC<{
       <MainMenu.DefaultItems.ClearCanvas />
       <MainMenu.Separator />
       <MainMenu.DefaultItems.Socials />
+      {user?.isAdmin && (
+        <MainMenu.Item
+          icon={settingsIcon}
+          onSelect={props.onAdminDialogOpen}
+          className={pendingUsersCount ? "highlighted" : undefined}
+        >
+          {tu("admin.menu")}
+          {!!pendingUsersCount && (
+            <span className="unchained-menu-count">{pendingUsersCount}</span>
+          )}
+        </MainMenu.Item>
+      )}
       <MainMenu.Item icon={brainIcon} onSelect={props.onApiAccessDialogOpen}>
         {tu("api.title")}
       </MainMenu.Item>
