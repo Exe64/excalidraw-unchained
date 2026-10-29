@@ -129,6 +129,23 @@ CREATE TABLE IF NOT EXISTS api_tokens (
 );
 CREATE INDEX IF NOT EXISTS api_tokens_user ON api_tokens(user_id);
 
+-- accounts of an OpenID Connect provider (SSO) linked to local users
+CREATE TABLE IF NOT EXISTS user_identities (
+  issuer     TEXT NOT NULL,
+  subject    TEXT NOT NULL,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (issuer, subject)
+);
+CREATE INDEX IF NOT EXISTS user_identities_user ON user_identities(user_id);
+
+-- single-use codes to sign in when the authenticator app is lost (hashed)
+CREATE TABLE IF NOT EXISTS recovery_codes (
+  user_id   TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  code_hash TEXT NOT NULL,
+  PRIMARY KEY (user_id, code_hash)
+);
+
 -- encrypted image files of collab rooms and share links
 CREATE TABLE IF NOT EXISTS blobs (
   prefix     TEXT NOT NULL,
@@ -152,6 +169,20 @@ const migrate = (db) => {
     // "active", or "pending" until an administrator approves the account
     db.exec(
       "ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active'",
+    );
+  }
+  if (!hasColumn(db, "users", "totp_secret")) {
+    // two-factor authentication (base32 secret of the authenticator app)
+    db.exec("ALTER TABLE users ADD COLUMN totp_secret TEXT");
+    // last time step used, so that a code can't be used twice
+    db.exec(
+      "ALTER TABLE users ADD COLUMN totp_last_step INTEGER NOT NULL DEFAULT 0",
+    );
+  }
+  if (!hasColumn(db, "sessions", "method")) {
+    // how the session was opened: "password" or "sso"
+    db.exec(
+      "ALTER TABLE sessions ADD COLUMN method TEXT NOT NULL DEFAULT 'password'",
     );
   }
   if (!hasColumn(db, "drawings", "deleted_at")) {

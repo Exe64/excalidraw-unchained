@@ -1,4 +1,5 @@
-// Administration: registration mode, user accounts and backups.
+// Administration: registration mode, two-factor authentication policy, user
+// accounts and backups.
 // Administrators only, from the app (not with API tokens).
 
 import crypto from "node:crypto";
@@ -12,6 +13,7 @@ import {
   createUser,
   deleteUserSessions,
   getUserById,
+  revokeSessionsLackingTwoFactor,
   setUserPassword,
   toPublicUser,
 } from "./auth.js";
@@ -24,7 +26,15 @@ import {
   stageRestore,
 } from "./backups.js";
 import { config } from "./config.js";
-import { getRegistrationMode, setRegistrationMode } from "./settings.js";
+import {
+  getRegistrationMode,
+  getTwoFactorPolicy,
+  setRegistrationMode,
+  setTwoFactorPolicy,
+  TWO_FACTOR_POLICIES,
+} from "./settings.js";
+import { isSsoEnabled } from "./sso.js";
+import { disableTotp } from "./totp.js";
 
 const countActiveAdmins = (db) =>
   db
@@ -68,24 +78,56 @@ export const registerAdminRoutes = (
 
   api.use("/admin", requireSession, requireAdmin);
 
+  const getSettings = () => ({
+    registrationMode: getRegistrationMode(db),
+    twoFactorPolicy: getTwoFactorPolicy(db),
+    sso: isSsoEnabled()
+      ? {
+          name: config.oidc.name,
+          newUsers: config.oidc.newUsers,
+          adminGroup: config.oidc.adminGroup || null,
+        }
+      : null,
+  });
+
   api.get("/admin/settings", (req, res) => {
-    res.json({ registrationMode: getRegistrationMode(db) });
+    res.json(getSettings());
   });
 
   api.put("/admin/settings", (req, res) => {
-    try {
-      setRegistrationMode(db, req.body?.registrationMode);
-    } catch (error) {
-      throw new HttpError(400, error.message);
+    const { registrationMode, twoFactorPolicy } = req.body || {};
+    if (registrationMode !== undefined) {
+      try {
+        setRegistrationMode(db, registrationMode);
+      } catch (error) {
+        throw new HttpError(400, error.message);
+      }
     }
-    res.json({ registrationMode: getRegistrationMode(db) });
+    if (twoFactorPolicy !== undefined) {
+      if (!TWO_FACTOR_POLICIES.includes(twoFactorPolicy)) {
+        throw new HttpError(400, "Règle de double authentification inconnue.");
+      }
+      // whoever sets the rule must follow it, or they'd lock themselves out
+      if (twoFactorPolicy !== "optional" && !req.user.totp_secret) {
+        throw new HttpError(
+          400,
+          "Activez d'abord la double authentification sur votre compte (Mon compte).",
+        );
+      }
+      setTwoFactorPolicy(db, twoFactorPolicy);
+      // the accounts concerned set it up at their next sign-in
+      revokeSessionsLackingTwoFactor(db, twoFactorPolicy);
+    }
+    res.json(getSettings());
   });
 
   api.get("/admin/users", (req, res) => {
     const rows = db
       .prepare(
         `SELECT users.*,
-           (SELECT COUNT(*) FROM drawings WHERE owner_id = users.id) AS drawings
+           (SELECT COUNT(*) FROM drawings WHERE owner_id = users.id) AS drawings,
+           EXISTS (SELECT 1 FROM user_identities
+                   WHERE user_id = users.id) AS sso_linked
          FROM users
          ORDER BY users.status = 'pending' DESC, users.created_at`,
       )
@@ -94,6 +136,7 @@ export const registerAdminRoutes = (
       users: rows.map((row) => ({
         ...toPublicUser(row),
         drawings: row.drawings,
+        ssoLinked: !!row.sso_linked,
       })),
     });
   });
@@ -137,6 +180,10 @@ export const registerAdminRoutes = (
         isAdmin ? 1 : 0,
         user.id,
       );
+      if (isAdmin && getTwoFactorPolicy(db) === "admins") {
+        // they'll set up two-factor authentication at their next sign-in
+        revokeSessionsLackingTwoFactor(db, "admins", user.id);
+      }
     }
     if (password !== undefined) {
       try {
@@ -147,6 +194,13 @@ export const registerAdminRoutes = (
       // log the user out everywhere
       deleteUserSessions(db, user.id);
     }
+    res.json({ user: toPublicUser(getUserById(db, user.id)) });
+  });
+
+  /** when the user lost their authenticator app and recovery codes */
+  api.post("/admin/users/:id/reset-2fa", (req, res) => {
+    const user = getTargetUser(req);
+    disableTotp(db, user.id);
     res.json({ user: toPublicUser(getUserById(db, user.id)) });
   });
 

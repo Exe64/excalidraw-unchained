@@ -10,6 +10,9 @@ Le README d'origine d'Excalidraw est conservé dans [README.upstream.md](./READM
 
 L'application s'ouvre sur un écran de connexion (nom d'utilisateur et mot de passe). Au tout premier lancement, elle propose de créer le **compte administrateur**. Ensuite, selon le réglage choisi par l'administrateur, les comptes sont soit créés par lui, soit demandés depuis l'écran de connexion (« Pas encore de compte ? En demander un ») puis validés par lui : tant que la demande n'est pas validée, la connexion est refusée avec un message explicite. Votre session reste ouverte 30 jours. Si elle expire pendant que vous dessinez, une fenêtre de reconnexion s'affiche par-dessus le dessin, sans rien perdre. Pour vous déconnecter : menu ☰ > **Se déconnecter**. Pour changer votre mot de passe : menu ☰ > **Mon compte** (vos autres sessions sont alors déconnectées).
 
+- **Connexion unique (SSO)** : si l'instance est reliée à un fournisseur d'identité OpenID Connect (Authentik, Keycloak, Authelia, Zitadel, Google, Microsoft Entra ID…), l'écran de connexion propose aussi **Se connecter avec …**, à côté des comptes locaux, qui restent utilisables. À la première connexion, un compte est créé avec le nom d'utilisateur du fournisseur. Un compte local existant peut être lié au fournisseur depuis **Mon compte** > **Lier à …** ; on se connecte ensuite indifféremment avec son mot de passe ou par SSO. Un compte du fournisseur ne prend jamais la main sur un compte local du même nom : il faut le lier depuis ce compte.
+- **Double authentification** (menu ☰ > **Mon compte**) : en plus du mot de passe, un code à 6 chiffres généré par une application d'authentification (Aegis, Google Authenticator, Microsoft Authenticator, 1Password, Bitwarden…). On l'active en scannant un QR code ; l'application fournit alors 10 **codes de secours**, utilisables une fois chacun en cas de téléphone perdu. L'administrateur peut l'exiger pour les administrateurs ou pour tous : les comptes concernés la configurent à leur prochaine connexion. Les connexions par SSO n'en demandent pas, elles s'appuient sur la sécurité du fournisseur (qui a souvent sa propre double authentification).
+
 ### Vos dessins, sur le serveur
 
 - **Enregistrement automatique** : chaque modification est sauvegardée sur le serveur environ une seconde après, et à la fermeture de l'onglet. Pas de bouton « Enregistrer ».
@@ -81,7 +84,8 @@ Les administrateurs disposent du menu ☰ > **Administration**, qui affiche auss
 
 - **Inscriptions** : _fermées_ (seuls les administrateurs créent les comptes) ou _ouvertes, avec validation_ (chacun peut demander un compte, un administrateur le valide ou le refuse) ;
 - **Demandes en attente** : valider ou refuser ;
-- **Comptes** : créer un compte, réinitialiser un mot de passe (l'utilisateur est déconnecté partout), donner ou retirer les droits d'administrateur, supprimer un compte avec ses dessins. L'application garde toujours au moins un administrateur actif.
+- **Double authentification** : _facultative_, _obligatoire pour les administrateurs_ ou _obligatoire pour tous_. Pour l'exiger, l'administrateur doit d'abord l'avoir activée sur son propre compte ;
+- **Comptes** : créer un compte, réinitialiser un mot de passe (l'utilisateur est déconnecté partout) ou en définir un pour un compte créé par SSO, réinitialiser la double authentification (téléphone perdu), donner ou retirer les droits d'administrateur, supprimer un compte avec ses dessins. Les comptes liés au SSO et ceux qui utilisent la double authentification sont signalés. L'application garde toujours au moins un administrateur actif.
 - **Sauvegardes** : la base est sauvegardée automatiquement (toutes les 24 h par défaut, les 14 dernières sont gardées) dans `/data/backups`. L'écran liste les sauvegardes et permet d'en faire une à la demande, de les télécharger, de les supprimer et de **restaurer** l'instance, à partir d'une sauvegarde de la liste ou d'un fichier envoyé. Avant de restaurer, une sauvegarde de l'état actuel est faite ; le serveur redémarre ensuite pour appliquer la restauration, puis la page se recharge.
 
 ### Personnaliser
@@ -116,6 +120,7 @@ docker compose exec excalidraw node src/cli.js add bob --admin
 docker compose exec excalidraw node src/cli.js passwd alice        # déconnecte ses sessions
 docker compose exec excalidraw node src/cli.js approve alice       # valide une demande de compte
 docker compose exec excalidraw node src/cli.js delete alice        # supprime aussi ses dessins
+docker compose exec excalidraw node src/cli.js reset-2fa alice     # désactive sa double authentification
 docker compose exec excalidraw node src/cli.js list
 
 # hors Docker
@@ -123,6 +128,17 @@ yarn --cwd server users add alice
 ```
 
 Le mot de passe peut aussi être passé via la variable `PASSWORD` (scripts).
+
+## Connexion unique (SSO / OpenID Connect)
+
+1. Chez le fournisseur d'identité, créez une application (client) OpenID Connect « confidentielle » avec l'URL de redirection `https://votre-instance/api/auth/sso/callback`.
+2. Renseignez au minimum `OIDC_ISSUER`, `OIDC_CLIENT_ID` et `OIDC_CLIENT_SECRET`, ainsi que `PUBLIC_URL` (l'URL de redirection est construite à partir d'elle). Redémarrez : le bouton **Se connecter avec …** apparaît sur l'écran de connexion.
+
+Exemples d'`OIDC_ISSUER` : Authentik `https://auth.example.com/application/o/excalidraw/`, Keycloak `https://sso.example.com/realms/<realm>`, Google `https://accounts.google.com`, Microsoft `https://login.microsoftonline.com/<tenant>/v2.0`.
+
+Qui peut entrer ? Par défaut (`OIDC_NEW_USERS=registration`), les nouveaux comptes suivent le mode d'inscription : refusés si les inscriptions sont fermées, en attente de validation sinon. Avec un fournisseur qui ne laisse passer que vos utilisateurs (Authentik, Keycloak…), `OIDC_NEW_USERS=active` les crée directement. **Ne mettez pas `active` avec Google ou Microsoft grand public** : n'importe quel compte pourrait entrer. Avec `OIDC_ADMIN_GROUP`, les membres de ce groupe du fournisseur sont administrateurs (vérifié à chaque connexion SSO, dans la revendication `groups` par défaut).
+
+Le flux utilisé est le flux « code d'autorisation » avec PKCE ; l'ID token est reçu directement du fournisseur et son émetteur, son audience, son expiration et son nonce sont vérifiés.
 
 ## Configuration du serveur
 
@@ -147,6 +163,13 @@ Le mot de passe peut aussi être passé via la variable `PASSWORD` (scripts).
 | `BACKUP_INTERVAL_HOURS` | `24` | Intervalle des sauvegardes automatiques (`0` = désactivées) |
 | `BACKUP_KEEP` | `14` | Nombre de sauvegardes automatiques conservées (les manuelles ne sont jamais supprimées automatiquement) |
 | `AI_REQUESTS_PER_DAY` | `200` | Quota de requêtes IA par utilisateur et par jour (`0` = illimité) |
+| `OIDC_ISSUER` | – (SSO désactivé) | URL de l'émetteur OpenID Connect (sa configuration est lue sur `…/.well-known/openid-configuration`) |
+| `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | – | Identifiants du client chez le fournisseur |
+| `OIDC_NAME` | `SSO` | Nom affiché sur le bouton (« Se connecter avec Authentik ») |
+| `OIDC_SCOPES` | `openid profile email` | Portées demandées (ajoutez `groups` si votre fournisseur l'exige pour `OIDC_ADMIN_GROUP`) |
+| `OIDC_USERNAME_CLAIM` | `preferred_username` | Revendication utilisée comme nom des nouveaux comptes (à défaut : début de l'e-mail, puis nom) |
+| `OIDC_NEW_USERS` | `registration` | `registration` (suivent le mode d'inscription) ou `active` (créés directement) |
+| `OIDC_ADMIN_GROUP` / `OIDC_GROUPS_CLAIM` | – / `groups` | Groupe dont les membres sont administrateurs, et revendication qui contient les groupes |
 
 ## Laisser Claude dessiner (serveur MCP)
 
@@ -209,7 +232,7 @@ yarn test:typecheck && yarn test:code && yarn test:other
 
 ```
 excalidraw-app/          l'app web (fork d'excalidraw.com)
-  auth/                  écran de connexion, garde d'authentification
+  auth/                  écran de connexion (SSO, double authentification), garde d'authentification
   data/ServerData.ts     sauvegarde auto du dessin courant, images, bibliothèque
   data/serverStorage.ts  salles de collaboration & fichiers chiffrés (remplace Firebase)
   data/drawings.ts       client de l'API des dessins
@@ -229,6 +252,8 @@ server/                  Node.js + Express + Socket.IO + SQLite
   src/mcp.js             serveur MCP (assistants IA)
   src/ai.js              fonctions IA de l'éditeur (Claude ou API compatible OpenAI)
   src/tokens.js          jetons d'accès personnels
+  src/sso.js             connexion unique OpenID Connect
+  src/totp.js            double authentification (TOTP, codes de secours)
   src/admin.js           administration (inscriptions, comptes, sauvegardes)
   src/settings.js        réglages de l'instance
   src/cli.js             gestion des utilisateurs

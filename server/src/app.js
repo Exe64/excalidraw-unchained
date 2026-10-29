@@ -8,15 +8,21 @@ import {
   clearSessionCookie,
   createSession,
   countUsers,
+  createTicket,
   createUser,
   deleteSession,
+  deleteTicket,
   deleteUserSessions,
   getDummyHash,
   getLoginRetryAfter,
   getSessionToken,
   getSessionUser,
+  getTicket,
+  getUserById,
   getUserByUsername,
+  hasPassword,
   registerFailedLogin,
+  registerTicketFailure,
   resetLoginAttempts,
   setSessionCookie,
   setUserPassword,
@@ -28,7 +34,18 @@ import { registerAdminRoutes } from "./admin.js";
 import { registerDrawingRoutes } from "./drawingRoutes.js";
 import { config } from "./config.js";
 import { transaction } from "./db.js";
-import { getRegistrationMode } from "./settings.js";
+import { getRegistrationMode, isTwoFactorRequired } from "./settings.js";
+import { isSsoEnabled, isUserLinked, registerSsoRoutes } from "./sso.js";
+import {
+  checkSecondFactor,
+  countRecoveryCodes,
+  disableTotp,
+  enableTotp,
+  generateRecoveryCodes,
+  generateTotpSecret,
+  getOtpAuthUri,
+  verifyTotp,
+} from "./totp.js";
 import { createMcpRouter } from "./mcp.js";
 import {
   createApiToken,
@@ -138,6 +155,8 @@ export const createApp = (db, opts = {}) => {
       allowRegistration: registrationMode !== "closed",
       // no account yet: the first one to be created is the administrator
       needsSetup: countUsers(db) === 0,
+      // sign-in through an OpenID Connect provider
+      sso: isSsoEnabled() ? { name: config.oidc.name } : null,
     });
   });
 
@@ -157,8 +176,16 @@ export const createApp = (db, opts = {}) => {
     res.status(201).json({ user: toPublicUser(user) });
   });
 
+  /** the signed-in user, with what "My account" shows */
+  const getAccount = (user) => ({
+    ...toPublicUser(user),
+    ssoLinked: isUserLinked(db, user.id),
+    twoFactorRequired: isTwoFactorRequired(db, user),
+    recoveryCodesLeft: user.totp_secret ? countRecoveryCodes(db, user.id) : 0,
+  });
+
   api.get("/auth/me", authenticate, (req, res) => {
-    res.json({ user: toPublicUser(req.user) });
+    res.json({ user: getAccount(req.user) });
   });
 
   api.post("/auth/login", async (req, res) => {
@@ -195,8 +222,72 @@ export const createApp = (db, opts = {}) => {
       );
     }
 
+    // second step: a code of the authenticator app...
+    if (user.totp_secret) {
+      return res.json({
+        twoFactor: "verify",
+        ticket: createTicket({ kind: "verify", userId: user.id }),
+      });
+    }
+    // ...which has to be set up first if it's required
+    if (isTwoFactorRequired(db, user)) {
+      const secret = generateTotpSecret();
+      return res.json({
+        twoFactor: "setup",
+        ticket: createTicket({ kind: "setup", userId: user.id, secret }),
+        secret,
+        uri: getOtpAuthUri(secret, user.username),
+      });
+    }
+
     setSessionCookie(req, res, createSession(db, user.id));
-    res.json({ user: toPublicUser(user) });
+    res.json({ user: getAccount(user) });
+  });
+
+  /** second step of the sign-in, see /auth/login */
+  api.post("/auth/login/2fa", (req, res) => {
+    const { ticket: ticketId, code } = req.body || {};
+    const ticket = getTicket(ticketId);
+    const user = ticket && getUserById(db, ticket.userId);
+    if (
+      !user ||
+      user.status !== "active" ||
+      !["verify", "setup"].includes(ticket.kind)
+    ) {
+      throw new HttpError(401, "La connexion a expiré, recommencez.", {
+        code: "expired",
+      });
+    }
+    const throttleKey = `2fa|${user.id}`;
+    const retryAfter = getLoginRetryAfter(throttleKey);
+    if (retryAfter) {
+      res.setHeader("Retry-After", String(retryAfter));
+      throw new HttpError(
+        429,
+        "Trop de tentatives de connexion. Réessayez plus tard.",
+      );
+    }
+
+    let recoveryCodes;
+    if (ticket.kind === "verify") {
+      if (!checkSecondFactor(db, user, code)) {
+        registerFailedLogin(throttleKey);
+        registerTicketFailure(ticketId);
+        throw new HttpError(401, "Code incorrect.", { code: "invalid_code" });
+      }
+    } else {
+      const step = verifyTotp(ticket.secret, code);
+      if (step === null) {
+        registerFailedLogin(throttleKey);
+        registerTicketFailure(ticketId);
+        throw new HttpError(401, "Code incorrect.", { code: "invalid_code" });
+      }
+      recoveryCodes = enableTotp(db, user.id, ticket.secret, step);
+    }
+    deleteTicket(ticketId);
+    resetLoginAttempts(throttleKey);
+    setSessionCookie(req, res, createSession(db, user.id));
+    res.json({ user: getAccount(getUserById(db, user.id)), recoveryCodes });
   });
 
   api.post("/auth/register", async (req, res) => {
@@ -234,6 +325,12 @@ export const createApp = (db, opts = {}) => {
 
   api.post("/auth/password", authenticate, requireSession, async (req, res) => {
     const { currentPassword, newPassword } = req.body || {};
+    if (!hasPassword(req.user)) {
+      throw new HttpError(
+        400,
+        "Ce compte se connecte par SSO et n'a pas de mot de passe.",
+      );
+    }
     if (
       typeof currentPassword !== "string" ||
       !(await verifyPassword(currentPassword, req.user.password_hash))
@@ -249,6 +346,84 @@ export const createApp = (db, opts = {}) => {
     deleteUserSessions(db, req.user.id, getSessionToken(req));
     res.json({ ok: true });
   });
+
+  // two-factor authentication, from "My account"
+  // ---------------------------------------------------------------------------
+
+  /** a new secret, to scan in an authenticator app */
+  api.post("/auth/2fa/setup", authenticate, requireSession, (req, res) => {
+    const secret = generateTotpSecret();
+    res.json({
+      ticket: createTicket({ kind: "enroll", userId: req.user.id, secret }),
+      secret,
+      uri: getOtpAuthUri(secret, req.user.username),
+    });
+  });
+
+  /** enables it once the app gives the right code */
+  api.post("/auth/2fa/enable", authenticate, requireSession, (req, res) => {
+    const { ticket: ticketId, code } = req.body || {};
+    const ticket = getTicket(ticketId);
+    if (!ticket || ticket.kind !== "enroll" || ticket.userId !== req.user.id) {
+      throw new HttpError(400, "La configuration a expiré, recommencez.");
+    }
+    const step = verifyTotp(ticket.secret, code);
+    if (step === null) {
+      registerTicketFailure(ticketId);
+      throw new HttpError(400, "Code incorrect.");
+    }
+    deleteTicket(ticketId);
+    const recoveryCodes = enableTotp(db, req.user.id, ticket.secret, step);
+    res.json({
+      user: getAccount(getUserById(db, req.user.id)),
+      recoveryCodes,
+    });
+  });
+
+  const requireSecondFactor = (req) => {
+    const throttleKey = `2fa|${req.user.id}`;
+    if (getLoginRetryAfter(throttleKey)) {
+      throw new HttpError(429, "Trop de tentatives. Réessayez plus tard.");
+    }
+    if (!checkSecondFactor(db, req.user, req.body?.code)) {
+      registerFailedLogin(throttleKey);
+      throw new HttpError(400, "Code incorrect.");
+    }
+    resetLoginAttempts(throttleKey);
+  };
+
+  api.post("/auth/2fa/disable", authenticate, requireSession, (req, res) => {
+    if (!req.user.totp_secret) {
+      return res.json({ user: getAccount(req.user) });
+    }
+    if (isTwoFactorRequired(db, req.user)) {
+      throw new HttpError(
+        403,
+        "La double authentification est obligatoire pour votre compte.",
+      );
+    }
+    requireSecondFactor(req);
+    disableTotp(db, req.user.id);
+    res.json({ user: getAccount(getUserById(db, req.user.id)) });
+  });
+
+  api.post(
+    "/auth/2fa/recovery-codes",
+    authenticate,
+    requireSession,
+    (req, res) => {
+      if (!req.user.totp_secret) {
+        throw new HttpError(
+          400,
+          "La double authentification n'est pas activée.",
+        );
+      }
+      requireSecondFactor(req);
+      res.json({ recoveryCodes: generateRecoveryCodes(db, req.user.id) });
+    },
+  );
+
+  registerSsoRoutes(api, { db, HttpError, authenticate, requireSession });
 
   // everything below requires an authenticated user
   api.use(authenticate);

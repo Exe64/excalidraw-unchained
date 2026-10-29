@@ -1,0 +1,119 @@
+.excalidraw {
+  .TwoFactor__setup,
+  .TwoFactor__recovery {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .TwoFactor__hint {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--color-gray-60, #7a7a7a);
+  }
+
+  .TwoFactor__qrcode {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+    width: 176px;
+    height: 176px;
+    padding: 8px;
+    box-sizing: border-box;
+    // a QR code must stay dark on light, whatever the theme
+    background-color: #fff;
+    border-radius: var(--border-radius-md, 0.5rem);
+    border: 1px solid var(--dialog-border-color);
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  .TwoFactor__key {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    text-align: center;
+    color: var(--color-gray-60, #7a7a7a);
+
+    code {
+      font-size: 0.875rem;
+      color: var(--text-primary-color);
+      word-break: break-all;
+      user-select: all;
+    }
+  }
+
+  .TwoFactor__code {
+    height: 2.75rem;
+    padding: 0 0.75rem;
+    font-family: var(--font-family-code, monospace);
+    font-size: 1.25rem;
+    letter-spacing: 0.15em;
+    text-align: center;
+    color: var(--text-primary-color);
+    background-color: var(--input-bg-color);
+    border: 1px solid var(--input-border-color);
+    border-radius: var(--border-radius-md, 0.5rem);
+    outline: none;
+    box-sizing: border-box;
+
+    &:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 1px var(--color-primary);
+    }
+
+    &[name="recovery-code"] {
+      font-size: 1rem;
+      letter-spacing: 0.05em;
+    }
+  }
+
+  .TwoFactor__codes {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.375rem 1rem;
+    margin: 0;
+    padding: 0.75rem 1rem;
+    list-style: none;
+    border-radius: var(--border-radius-md, 0.5rem);
+    background-color: var(--color-surface-low, #f5f5f5);
+
+    code {
+      font-size: 0.9375rem;
+      color: var(--text-primary-color);
+    }
+  }
+
+  .TwoFactor__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .TwoFactor__secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 2rem;
+    padding: 0 0.75rem;
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--text-primary-color);
+    background-color: var(--island-bg-color);
+    border: 1px solid var(--dialog-border-color);
+    border-radius: var(--border-radius-md, 0.5rem);
+    cursor: pointer;
+
+    &:hover {
+      background-color: var(--button-hover-bg, var(--color-surface-high));
+    }
+  }
+}

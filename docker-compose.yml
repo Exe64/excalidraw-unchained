@@ -26,6 +26,14 @@ services:
       - AI_API_KEY=${AI_API_KEY:-}
       - AI_MODEL=${AI_MODEL:-}
       - AI_BASE_URL=${AI_BASE_URL:-}
+      # single sign-on through an OpenID Connect provider (empty = disabled);
+      # redirect URL to register: <PUBLIC_URL>/api/auth/sso/callback
+      - OIDC_ISSUER=${OIDC_ISSUER:-}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET:-}
+      - OIDC_NAME=${OIDC_NAME:-}
+      - OIDC_NEW_USERS=${OIDC_NEW_USERS:-}
+      - OIDC_ADMIN_GROUP=${OIDC_ADMIN_GROUP:-}
       # automatic backups of the database, in /data/backups (0 = disabled)
       - BACKUP_INTERVAL_HOURS=${BACKUP_INTERVAL_HOURS:-24}
       - BACKUP_KEEP=${BACKUP_KEEP:-14}

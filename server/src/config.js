@@ -60,6 +60,30 @@ export const config = {
     /** number of automatic backups kept */
     keep: Number(process.env.BACKUP_KEEP ?? 14),
   },
+  /** sign-in through an OpenID Connect provider (Authentik, Keycloak,
+   * Authelia, Google, Microsoft Entra ID…), next to local accounts. Enabled
+   * when OIDC_ISSUER and OIDC_CLIENT_ID are set. */
+  oidc: {
+    issuer: (process.env.OIDC_ISSUER || "").replace(/\/+$/, ""),
+    clientId: process.env.OIDC_CLIENT_ID || "",
+    clientSecret: process.env.OIDC_CLIENT_SECRET || "",
+    /** label of the sign-in button */
+    name: process.env.OIDC_NAME || "SSO",
+    scopes: process.env.OIDC_SCOPES || "openid profile email",
+    /** claim used as the username of new accounts */
+    usernameClaim: process.env.OIDC_USERNAME_CLAIM || "preferred_username",
+    /** "registration": new accounts follow the registration mode (closed:
+     * refused, approval: waiting for an administrator); "active": created
+     * right away (for a provider that only lets your people in) */
+    newUsers:
+      (process.env.OIDC_NEW_USERS || "").toLowerCase() === "active"
+        ? "active"
+        : "registration",
+    /** members of this group are administrators (checked at each SSO
+     * sign-in), empty = administrators are managed in the app */
+    adminGroup: process.env.OIDC_ADMIN_GROUP || "",
+    groupsClaim: process.env.OIDC_GROUPS_CLAIM || "groups",
+  },
   /** backend of the editor's AI features ("text to diagram", "wireframe to
    * code"). Disabled unless AI_PROVIDER is set. */
   ai: {

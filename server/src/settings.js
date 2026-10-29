@@ -34,3 +34,30 @@ export const setRegistrationMode = (db, mode) => {
   }
   setSetting(db, "registration_mode", mode);
 };
+
+/**
+ * Who must use two-factor authentication to sign in with a password (signing
+ * in through SSO relies on the provider's own security):
+ * - "optional": everyone chooses
+ * - "admins": required for administrators
+ * - "all": required for everyone
+ */
+export const TWO_FACTOR_POLICIES = ["optional", "admins", "all"];
+
+export const getTwoFactorPolicy = (db) => {
+  const policy = getSetting(db, "two_factor_policy");
+  return TWO_FACTOR_POLICIES.includes(policy) ? policy : "optional";
+};
+
+export const setTwoFactorPolicy = (db, policy) => {
+  if (!TWO_FACTOR_POLICIES.includes(policy)) {
+    throw new Error(`Règle de double authentification inconnue : ${policy}`);
+  }
+  setSetting(db, "two_factor_policy", policy);
+};
+
+/** whether `user` (a database row) must use two-factor authentication */
+export const isTwoFactorRequired = (db, user) => {
+  const policy = getTwoFactorPolicy(db);
+  return policy === "all" || (policy === "admins" && !!user.is_admin);
+};

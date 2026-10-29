@@ -6,7 +6,12 @@ import { useUnchainedI18n } from "../app-language/unchained-i18n";
 import { useAtom } from "../app-jotai";
 import { onUnauthorized } from "../data/api";
 
-import { currentUserAtom, fetchCurrentUser, sessionExpiredAtom } from "./auth";
+import {
+  currentUserAtom,
+  fetchCurrentUser,
+  sessionExpiredAtom,
+  ssoResult,
+} from "./auth";
 import { LoginScreen } from "./LoginScreen";
 
 /**
@@ -28,6 +33,11 @@ export const AuthGate = ({ children }: { children: React.ReactNode }) => {
       fetchCurrentUser()
         .then((user) => {
           if (!cancelled) {
+            if (user && ssoResult?.status === "done" && window.opener) {
+              // signed in again through SSO in a popup, from the editor
+              // (see LoginScreen): the editor takes it from here
+              window.close();
+            }
             setUser(user);
             setStatus("ready");
           }

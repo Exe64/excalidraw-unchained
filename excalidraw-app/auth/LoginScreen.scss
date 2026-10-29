@@ -158,4 +158,39 @@
       text-decoration: underline;
     }
   }
+
+  .unchained-auth__or {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.8125rem;
+    color: var(--color-gray-60, #7a7a7a);
+
+    &::before,
+    &::after {
+      content: "";
+      flex: 1;
+      border-top: 1px solid var(--dialog-border-color);
+    }
+  }
+
+  .unchained-auth__sso {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.75rem;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--color-primary);
+    background-color: var(--island-bg-color);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--border-radius-md, 0.5rem);
+    cursor: pointer;
+
+    &:hover {
+      background-color: var(--color-surface-primary-container, #e0dfff);
+    }
+  }
 }

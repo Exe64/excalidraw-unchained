@@ -16,14 +16,24 @@ import { API_BASE, apiRequest } from "../data/api";
 
 import "./AdminDialog.scss";
 
-import type { RegistrationMode, User } from "../auth/auth";
+import type { RegistrationMode, TwoFactorPolicy, User } from "../auth/auth";
 
 export const adminDialogOpenAtom = atom(false);
 
 /** accounts waiting for approval, shown in the main menu */
 export const pendingUsersCountAtom = atom(0);
 
-type AdminUser = User & { drawings: number };
+type AdminUser = User & { drawings: number; ssoLinked: boolean };
+
+type AdminSettings = {
+  registrationMode: RegistrationMode;
+  twoFactorPolicy: TwoFactorPolicy;
+  sso: {
+    name: string;
+    newUsers: "active" | "registration";
+    adminGroup: string | null;
+  } | null;
+};
 
 const fetchUsers = async () => {
   const { users } = await apiRequest<{ users: AdminUser[] }>(
@@ -85,6 +95,19 @@ const UserRow = ({
           {isSelf && (
             <span className="AdminDialog__badge AdminDialog__badge--muted">
               {t("admin.you")}
+            </span>
+          )}
+          {user.twoFactorEnabled && (
+            <span
+              className="AdminDialog__badge AdminDialog__badge--muted"
+              title={t("tfa.title")}
+            >
+              {t("admin.badge2fa")}
+            </span>
+          )}
+          {user.ssoLinked && (
+            <span className="AdminDialog__badge AdminDialog__badge--muted">
+              {t("admin.badgeSso")}
             </span>
           )}
         </div>
@@ -173,8 +196,29 @@ const UserRow = ({
             className="AdminDialog__link"
             onClick={() => setIsResetting(!isResetting)}
           >
-            {t("admin.resetPassword")}
+            {user.hasPassword
+              ? t("admin.resetPassword")
+              : t("admin.setPassword")}
           </button>
+          {user.twoFactorEnabled && (
+            <button
+              type="button"
+              className="AdminDialog__link"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    t("admin.reset2faConfirm", { name: user.username }),
+                  )
+                ) {
+                  run(() =>
+                    apiRequest("POST", `${path}/reset-2fa`, { json: {} }),
+                  );
+                }
+              }}
+            >
+              {t("admin.reset2fa")}
+            </button>
+          )}
           {!isSelf && (
             <button
               type="button"
@@ -446,8 +490,7 @@ export const AdminDialog = () => {
   const [isOpen, setIsOpen] = useAtom(adminDialogOpenAtom);
   const currentUser = useAtomValue(currentUserAtom);
   const [users, setUsers] = useState<AdminUser[] | null>(null);
-  const [registrationMode, setRegistrationMode] =
-    useState<RegistrationMode | null>(null);
+  const [settings, setSettings] = useState<AdminSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [newUser, setNewUser] = useState({
     username: "",
@@ -459,13 +502,10 @@ export const AdminDialog = () => {
     try {
       const [users, settings] = await Promise.all([
         fetchUsers(),
-        apiRequest<{ registrationMode: RegistrationMode }>(
-          "GET",
-          "/admin/settings",
-        ),
+        apiRequest<AdminSettings>("GET", "/admin/settings"),
       ]);
       setUsers(users);
-      setRegistrationMode(settings.registrationMode);
+      setSettings(settings);
     } catch (error: any) {
       setError(error.message);
     }
@@ -483,6 +523,19 @@ export const AdminDialog = () => {
   if (!isOpen || !currentUser?.isAdmin) {
     return null;
   }
+
+  const updateSettings = async (changes: Partial<AdminSettings>) => {
+    try {
+      setSettings(
+        await apiRequest<AdminSettings>("PUT", "/admin/settings", {
+          json: changes,
+        }),
+      );
+      setError(null);
+    } catch (error: any) {
+      setError(error.message);
+    }
+  };
 
   const pendingUsers = users?.filter((user) => user.status === "pending");
   const activeUsers = users?.filter((user) => user.status !== "pending");
@@ -517,20 +570,8 @@ export const AdminDialog = () => {
             <input
               type="radio"
               name="registration-mode"
-              checked={registrationMode === mode}
-              onChange={async () => {
-                try {
-                  const settings = await apiRequest<{
-                    registrationMode: RegistrationMode;
-                  }>("PUT", "/admin/settings", {
-                    json: { registrationMode: mode },
-                  });
-                  setRegistrationMode(settings.registrationMode);
-                  setError(null);
-                } catch (error: any) {
-                  setError(error.message);
-                }
-              }}
+              checked={settings?.registrationMode === mode}
+              onChange={() => updateSettings({ registrationMode: mode })}
             />
             <span>
               <strong>
@@ -542,6 +583,51 @@ export const AdminDialog = () => {
                 {mode === "closed"
                   ? t("admin.modeClosedHint")
                   : t("admin.modeApprovalHint")}
+              </span>
+            </span>
+          </label>
+        ))}
+        {settings && (
+          <p className="AdminDialog__meta">
+            {settings.sso
+              ? `${t("admin.ssoInfo", { name: settings.sso.name })} ${
+                  settings.sso.newUsers === "active"
+                    ? t("admin.ssoNewActive")
+                    : t("admin.ssoNewRegistration")
+                }${
+                  settings.sso.adminGroup
+                    ? ` ${t("admin.ssoAdminGroup", {
+                        group: settings.sso.adminGroup,
+                      })}`
+                    : ""
+                }`
+              : t("admin.ssoOff")}
+          </p>
+        )}
+      </section>
+
+      <section className="AdminDialog__section">
+        <h3>{t("tfa.title")}</h3>
+        {(["optional", "admins", "all"] as const).map((policy) => (
+          <label key={policy} className="AdminDialog__radio">
+            <input
+              type="radio"
+              name="two-factor-policy"
+              checked={settings?.twoFactorPolicy === policy}
+              onChange={() => updateSettings({ twoFactorPolicy: policy })}
+            />
+            <span>
+              <strong>
+                {policy === "optional"
+                  ? t("admin.tfaOptional")
+                  : policy === "admins"
+                  ? t("admin.tfaAdmins")
+                  : t("admin.tfaAll")}
+              </strong>
+              <span className="AdminDialog__meta">
+                {policy === "optional"
+                  ? t("admin.tfaOptionalHint")
+                  : t("admin.tfaRequiredHint")}
               </span>
             </span>
           </label>

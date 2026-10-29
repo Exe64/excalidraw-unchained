@@ -146,7 +146,8 @@ import {
   currentDrawingAtom,
 } from "./data/ServerData";
 import { AuthGate } from "./auth/AuthGate";
-import { logout } from "./auth/auth";
+import { fetchAuthConfig, logout, ssoResult } from "./auth/auth";
+import { getSsoErrorKey } from "./auth/LoginScreen";
 import { tu } from "./app-language/unchained-i18n";
 import { ShareDialog, shareDialogStateAtom } from "./share/ShareDialog";
 import CollabError, { collabErrorIndicatorAtom } from "./collab/CollabError";
@@ -706,6 +707,32 @@ const ExcalidrawWrapper = () => {
     () => excalidrawAPI?.getFiles() ?? {},
     [excalidrawAPI],
   );
+
+  // back from linking the account to the SSO provider ("My account")
+  useEffect(() => {
+    if (!excalidrawAPI || !ssoResult || ssoResult.status === "done") {
+      return;
+    }
+    const result = { ...ssoResult };
+    // (shown once)
+    delete ssoResult.status;
+    delete ssoResult.error;
+    fetchAuthConfig()
+      .then(({ sso }) => {
+        const name = sso?.name ?? "SSO";
+        if (result.status === "linked") {
+          // (after the scene is loaded, which resets the toast)
+          window.setTimeout(
+            () =>
+              excalidrawAPI.setToast({ message: tu("sso.linked", { name }) }),
+            1500,
+          );
+        } else if (result.error) {
+          setErrorMessage(tu(getSsoErrorKey(result.error), { name }));
+        }
+      })
+      .catch(() => {});
+  }, [excalidrawAPI]);
 
   // whenever another drawing is opened (whichever way)
   const currentDrawingId = currentDrawing?.id;

@@ -52,6 +52,12 @@ export const getDummyHash = async () =>
 // users
 // -----------------------------------------------------------------------------
 
+/** password_hash of accounts created through SSO, which have no password */
+const NO_PASSWORD = "!";
+
+/** whether the user (a database row) can sign in with a password */
+export const hasPassword = (row) => !!row && row.password_hash !== NO_PASSWORD;
+
 export const toPublicUser = (row) =>
   row && {
     id: row.id,
@@ -59,11 +65,19 @@ export const toPublicUser = (row) =>
     isAdmin: !!row.is_admin,
     status: row.status || "active",
     createdAt: row.created_at,
+    hasPassword: hasPassword(row),
+    twoFactorEnabled: !!row.totp_secret,
   };
 
+export const validateUsername = (username) =>
+  typeof username !== "string" || !USERNAME_RE.test(username)
+    ? "Le nom d'utilisateur doit faire 2 à 64 caractères (lettres, chiffres, . _ @ -)."
+    : null;
+
 export const validateCredentials = (username, password) => {
-  if (typeof username !== "string" || !USERNAME_RE.test(username)) {
-    return "Le nom d'utilisateur doit faire 2 à 64 caractères (lettres, chiffres, . _ @ -).";
+  const usernameError = validateUsername(username);
+  if (usernameError) {
+    return usernameError;
   }
   if (typeof password !== "string" || password.length < MIN_PASSWORD_LENGTH) {
     return `Le mot de passe doit faire au moins ${MIN_PASSWORD_LENGTH} caractères.`;
@@ -71,11 +85,15 @@ export const validateCredentials = (username, password) => {
   return null;
 };
 
+/** `password` is null for accounts created through SSO */
 export const createUser = async (
   db,
   { username, password, isAdmin, status = "active" },
 ) => {
-  const error = validateCredentials(username, password);
+  const error =
+    password === null
+      ? validateUsername(username)
+      : validateCredentials(username, password);
   if (error) {
     throw new Error(error);
   }
@@ -85,7 +103,8 @@ export const createUser = async (
   const user = {
     id: crypto.randomUUID(),
     username,
-    password_hash: await hashPassword(password),
+    password_hash:
+      password === null ? NO_PASSWORD : await hashPassword(password),
     is_admin: isAdmin ? 1 : 0,
     status,
     created_at: Date.now(),
@@ -124,13 +143,14 @@ export const countUsers = (db) =>
 const hashToken = (token) =>
   crypto.createHash("sha256").update(token).digest("hex");
 
-export const createSession = (db, userId) => {
+/** `method`: "password" or "sso" */
+export const createSession = (db, userId, method = "password") => {
   const token = crypto.randomBytes(32).toString("base64url");
   const now = Date.now();
   db.prepare(
-    `INSERT INTO sessions (token_hash, user_id, created_at, expires_at)
-     VALUES (?, ?, ?, ?)`,
-  ).run(hashToken(token), userId, now, now + config.sessionTtlMs);
+    `INSERT INTO sessions (token_hash, user_id, created_at, expires_at, method)
+     VALUES (?, ?, ?, ?, ?)`,
+  ).run(hashToken(token), userId, now, now + config.sessionTtlMs, method);
   return token;
 };
 
@@ -162,6 +182,23 @@ export const deleteUserSessions = (db, userId, exceptToken) => {
     userId,
     exceptToken ? hashToken(exceptToken) : "",
   );
+};
+
+/**
+ * Logs out the password sessions of the users who must use two-factor
+ * authentication but haven't set it up yet (`userId`: only this user).
+ */
+export const revokeSessionsLackingTwoFactor = (db, policy, userId = null) => {
+  if (policy === "optional") {
+    return;
+  }
+  db.prepare(
+    `DELETE FROM sessions WHERE method = 'password' AND user_id IN (
+       SELECT id FROM users
+       WHERE totp_secret IS NULL AND (:policy = 'all' OR is_admin = 1)
+         AND (:userId IS NULL OR id = :userId)
+     )`,
+  ).run({ policy, userId });
 };
 
 export const purgeExpiredSessions = (db) => {
@@ -253,4 +290,45 @@ export const registerFailedLogin = (key) => {
 
 export const resetLoginAttempts = (key) => {
   loginAttempts.delete(key);
+};
+
+// sign-in in two steps (password, then two-factor code)
+// -----------------------------------------------------------------------------
+
+const TICKET_TTL_MS = 5 * 60 * 1000;
+const TICKET_MAX_ATTEMPTS = 5;
+const tickets = new Map();
+
+/** a short-lived reference to a sign-in in progress (kept in memory) */
+export const createTicket = (data) => {
+  const now = Date.now();
+  for (const [id, ticket] of tickets) {
+    if (ticket.expiresAt <= now) {
+      tickets.delete(id);
+    }
+  }
+  const id = crypto.randomBytes(24).toString("base64url");
+  tickets.set(id, { ...data, attempts: 0, expiresAt: now + TICKET_TTL_MS });
+  return id;
+};
+
+export const getTicket = (id) => {
+  const ticket = typeof id === "string" ? tickets.get(id) : undefined;
+  if (!ticket || ticket.expiresAt <= Date.now()) {
+    tickets.delete(id);
+    return null;
+  }
+  return ticket;
+};
+
+export const deleteTicket = (id) => {
+  tickets.delete(id);
+};
+
+/** counts a wrong code; the ticket is dropped after too many */
+export const registerTicketFailure = (id) => {
+  const ticket = tickets.get(id);
+  if (ticket && ++ticket.attempts >= TICKET_MAX_ATTEMPTS) {
+    tickets.delete(id);
+  }
 };
