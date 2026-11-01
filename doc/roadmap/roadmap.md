@@ -13,6 +13,12 @@ Backlog consolidé : plans nommés d'après leur issue GitHub (voir `doc/roadmap
 
 ## À faire
 
+### [Issue: #9] Mettre à jour l'application depuis l'application [PRIORITÉ: MOYENNE] [Complexité: L] 🟢
+
+Plan : [`9-in-app-update.md`](9-in-app-update.md)
+
+Bouton « Update x.y available » pour les admins, avec vérification sur option, conteneur dédié, sauvegarde préalable et retour à l'image précédente en cas d'échec.
+
 ---
 
 ## Fait
