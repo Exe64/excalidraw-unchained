@@ -29,8 +29,10 @@ import { config } from "./config.js";
 import {
   getRegistrationMode,
   getTwoFactorPolicy,
+  getWebEmbedsEnabled,
   setRegistrationMode,
   setTwoFactorPolicy,
+  setWebEmbedsEnabled,
   TWO_FACTOR_POLICIES,
 } from "./settings.js";
 import { isSsoEnabled } from "./sso.js";
@@ -81,6 +83,7 @@ export const registerAdminRoutes = (
   const getSettings = () => ({
     registrationMode: getRegistrationMode(db),
     twoFactorPolicy: getTwoFactorPolicy(db),
+    webEmbedsEnabled: getWebEmbedsEnabled(db),
     sso: isSsoEnabled()
       ? {
           name: config.oidc.name,
@@ -95,7 +98,8 @@ export const registerAdminRoutes = (
   });
 
   api.put("/admin/settings", (req, res) => {
-    const { registrationMode, twoFactorPolicy } = req.body || {};
+    const { registrationMode, twoFactorPolicy, webEmbedsEnabled } =
+      req.body || {};
     if (registrationMode !== undefined) {
       try {
         setRegistrationMode(db, registrationMode);
@@ -117,6 +121,12 @@ export const registerAdminRoutes = (
       setTwoFactorPolicy(db, twoFactorPolicy);
       // the accounts concerned set it up at their next sign-in
       revokeSessionsLackingTwoFactor(db, twoFactorPolicy);
+    }
+    if (webEmbedsEnabled !== undefined) {
+      if (typeof webEmbedsEnabled !== "boolean") {
+        throw new HttpError(400, "Valeur inconnue pour les intégrations web.");
+      }
+      setWebEmbedsEnabled(db, webEmbedsEnabled);
     }
     res.json(getSettings());
   });

@@ -46,6 +46,7 @@ export const fetchAuthConfig = () =>
     needsSetup: boolean;
     /** sign-in through an OpenID Connect provider */
     sso: { name: string } | null;
+    webEmbedsEnabled: boolean;
   }>("GET", "/auth/config");
 
 /** creates the administrator account, on first launch */

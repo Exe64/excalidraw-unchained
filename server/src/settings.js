@@ -56,6 +56,16 @@ export const setTwoFactorPolicy = (db, policy) => {
   setSetting(db, "two_factor_policy", policy);
 };
 
+/**
+ * Whether drawings can load third-party web embeds (YouTube, Figma…) in the
+ * browsers of the people who open them. Off until an administrator allows it.
+ */
+export const getWebEmbedsEnabled = (db) =>
+  getSetting(db, "web_embeds_enabled") === "true";
+
+export const setWebEmbedsEnabled = (db, enabled) =>
+  setSetting(db, "web_embeds_enabled", String(enabled));
+
 /** whether `user` (a database row) must use two-factor authentication */
 export const isTwoFactorRequired = (db, user) => {
   const policy = getTwoFactorPolicy(db);

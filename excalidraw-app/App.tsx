@@ -141,7 +141,7 @@ import {
   saveErrorAtom,
   currentDrawingAtom,
 } from "./data/ServerData";
-import { AuthGate } from "./auth/AuthGate";
+import { AuthGate, webEmbedsEnabledAtom } from "./auth/AuthGate";
 import { fetchAuthConfig, logout, ssoResult } from "./auth/auth";
 import { getSsoErrorKey } from "./auth/LoginScreen";
 import { tu } from "./app-language/unchained-i18n";
@@ -1041,6 +1041,7 @@ const ExcalidrawWrapper = () => {
     );
   };
 
+  const webEmbedsEnabled = useAtomValue(webEmbedsEnabledAtom);
   const isOffline = useAtomValue(isOfflineAtom);
   const isCollabAvailable =
     !isCollabDisabled && (!isOffline || isCollaborating);
@@ -1141,6 +1142,7 @@ const ExcalidrawWrapper = () => {
         onExport={onExport}
         initialData={initialStatePromiseRef.current.promise}
         isCollaborating={isCollaborating}
+        validateEmbeddable={webEmbedsEnabled ? undefined : false}
         onPointerUpdate={collabAPI?.onPointerUpdate}
         UIOptions={{
           canvasActions: {

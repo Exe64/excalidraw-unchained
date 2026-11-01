@@ -32,7 +32,7 @@ La barre d'outils en haut de l'écran propose (avec leur raccourci clavier) :
 - **Rectangle** (R), **losange** (D), **ellipse** (O), **flèche** (A), **ligne** (L) ;
 - **Crayon** (P) pour le dessin libre, **texte** (T), **post-it** (N), **image** (insertion depuis un fichier ou le presse-papiers) ;
 - **Gomme** (E) ;
-- dans « Plus d'outils » : **cadre** (pour regrouper et présenter une zone), **intégration web** (vidéo, page…), **pointeur laser** pour présenter, **dessin vers forme**, **remplissage au pot de peinture**, **Mermaid vers Excalidraw**, et les fonctions IA (voir plus bas).
+- dans « Plus d'outils » : **cadre** (pour regrouper et présenter une zone), **intégration web** (vidéo, page… si l'administrateur l'autorise), **pointeur laser** pour présenter, **dessin vers forme**, **remplissage au pot de peinture**, **Mermaid vers Excalidraw**, et les fonctions IA (voir plus bas).
 
 Quelques gestes utiles : double-cliquer sur une forme pour y écrire un texte, relier deux formes avec une flèche (elle reste attachée quand on déplace les formes), créer un organigramme au clavier à partir d'une forme sélectionnée (Ctrl + flèches), éditer les points d'une ligne ou d'une flèche, recadrer une image.
 
@@ -85,6 +85,7 @@ Les administrateurs disposent du menu ☰ > **Administration**, qui affiche auss
 - **Inscriptions** : _fermées_ (seuls les administrateurs créent les comptes) ou _ouvertes, avec validation_ (chacun peut demander un compte, un administrateur le valide ou le refuse) ;
 - **Demandes en attente** : valider ou refuser ;
 - **Double authentification** : _facultative_, _obligatoire pour les administrateurs_ ou _obligatoire pour tous_. Pour l'exiger, l'administrateur doit d'abord l'avoir activée sur son propre compte ;
+- **Intégrations web** : désactivées par défaut. Si vous les autorisez, le contenu (YouTube, Vimeo, Figma…) est chargé depuis ces services par toute personne qui ouvre le dessin. Sinon, seul le lien s'affiche ;
 - **Comptes** : créer un compte, réinitialiser un mot de passe (l'utilisateur est déconnecté partout) ou en définir un pour un compte créé par SSO, réinitialiser la double authentification (téléphone perdu), donner ou retirer les droits d'administrateur, supprimer un compte avec ses dessins. Les comptes liés au SSO et ceux qui utilisent la double authentification sont signalés. L'application garde toujours au moins un administrateur actif.
 - **Sauvegardes** : la base est sauvegardée automatiquement (toutes les 24 h par défaut, les 14 dernières sont gardées) dans `/data/backups`. L'écran liste les sauvegardes et permet d'en faire une à la demande, de les télécharger, de les supprimer et de **restaurer** l'instance, à partir d'une sauvegarde de la liste ou d'un fichier envoyé. Avant de restaurer, une sauvegarde de l'état actuel est faite ; le serveur redémarre ensuite pour appliquer la restauration, puis la page se recharge.
 
@@ -272,7 +273,7 @@ Une instance n'envoie rien à un tiers sans action explicite de l'utilisateur. R
 
 - le **catalogue public de bibliothèques** : ouvert seulement quand on clique sur « Parcourir les bibliothèques » ; la publication passe par un formulaire qui envoie la bibliothèque à ce catalogue ;
 - le lien vers la **documentation** d'Excalidraw dans l'aide, ouvert seulement au clic ;
-- les **services que vous configurez** : fournisseur d'IA et fournisseur d'identité ;
+- les **services que vous configurez** : fournisseur d'IA et fournisseur d'identité, ainsi que les **intégrations web** si vous les autorisez ;
 - deux indications `preconnect` vers Google Fonts dans la page : elles peuvent ouvrir une connexion, mais aucune police n'est chargée depuis Google et l'application fonctionne sans Internet.
 
 ## Suivre les évolutions d'Excalidraw

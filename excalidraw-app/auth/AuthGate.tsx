@@ -3,16 +3,23 @@ import { useEffect, useState } from "react";
 import { LoadingMessage } from "@excalidraw/excalidraw/components/LoadingMessage";
 
 import { useUnchainedI18n } from "../app-language/unchained-i18n";
-import { useAtom } from "../app-jotai";
+import { atom, useAtom } from "../app-jotai";
 import { onUnauthorized } from "../data/api";
 
 import {
   currentUserAtom,
+  fetchAuthConfig,
   fetchCurrentUser,
   sessionExpiredAtom,
   ssoResult,
 } from "./auth";
 import { LoginScreen } from "./LoginScreen";
+
+/**
+ * Whether third-party web embeds are allowed. Known before the editor mounts,
+ * as it only validates each embed once. `null` until loaded.
+ */
+export const webEmbedsEnabledAtom = atom<boolean | null>(null);
 
 /**
  * Renders its children only for authenticated users. When the session expires
@@ -23,6 +30,7 @@ export const AuthGate = ({ children }: { children: React.ReactNode }) => {
   const { t } = useUnchainedI18n();
   const [user, setUser] = useAtom(currentUserAtom);
   const [sessionExpired, setSessionExpired] = useAtom(sessionExpiredAtom);
+  const [webEmbedsEnabled, setWebEmbedsEnabled] = useAtom(webEmbedsEnabledAtom);
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
     "loading",
   );
@@ -63,6 +71,15 @@ export const AuthGate = ({ children }: { children: React.ReactNode }) => {
     [setSessionExpired],
   );
 
+  useEffect(() => {
+    if (user && webEmbedsEnabled === null) {
+      fetchAuthConfig()
+        .then((config) => setWebEmbedsEnabled(!!config.webEmbedsEnabled))
+        // can't tell: don't load anything from third parties
+        .catch(() => setWebEmbedsEnabled(false));
+    }
+  }, [user, webEmbedsEnabled, setWebEmbedsEnabled]);
+
   if (status === "loading") {
     return <LoadingMessage delay={250} />;
   }
@@ -77,6 +94,10 @@ export const AuthGate = ({ children }: { children: React.ReactNode }) => {
         }}
       />
     );
+  }
+
+  if (webEmbedsEnabled === null) {
+    return <LoadingMessage delay={250} />;
   }
 
   return (
