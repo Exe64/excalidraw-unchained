@@ -1,6 +1,6 @@
 services:
   excalidraw:
-    # image published on each push to main (`docker compose pull` to update);
+    # image of the latest release (`docker compose pull` to update);
     # `docker compose up -d --build` builds it from the sources instead
     image: ghcr.io/exe64/excalidraw-unchained:latest
     build:

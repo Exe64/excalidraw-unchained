@@ -97,14 +97,14 @@ Thème clair, sombre ou selon le système, couleur de fond du canevas, plus de 4
 
 ## Installation (Docker)
 
-Une image est publiée sur le GitHub Container Registry à chaque mise à jour de `main` (`linux/amd64` et `linux/arm64`) : `ghcr.io/exe64/excalidraw-unchained:latest`. Le `docker-compose.yml` l'utilise :
+Une image est publiée sur le GitHub Container Registry à chaque version (`linux/amd64` et `linux/arm64`) : `ghcr.io/exe64/excalidraw-unchained:latest` désigne la dernière version. Le `docker-compose.yml` l'utilise :
 
 ```bash
 docker compose pull      # récupère (ou met à jour) l'image
 docker compose up -d
 ```
 
-Pour construire l'image depuis les sources à la place : `docker compose up -d --build`. Les tags `vX.Y.Z` publient aussi les images `X.Y.Z` et `X.Y`.
+Pour construire l'image depuis les sources à la place : `docker compose up -d --build`. Un tag `vX.Y.Z` publie les images `X.Y.Z`, `X.Y` et `latest`. Chaque mise à jour de `main` publie seulement une image `sha-<commit>`, qui n'est jamais installée par `docker compose pull`.
 
 L'application est servie sur <http://localhost:3000>. À la première ouverture, elle demande de créer le compte administrateur. Pour le créer automatiquement à la place, définissez `ADMIN_USERNAME` et `ADMIN_PASSWORD` avant le premier démarrage. Les données sont conservées dans le volume `excalidraw-data` (`/data/excalidraw.sqlite`).
 

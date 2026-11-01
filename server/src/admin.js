@@ -81,6 +81,7 @@ export const registerAdminRoutes = (
   api.use("/admin", requireSession, requireAdmin);
 
   const getSettings = () => ({
+    version: config.version,
     registrationMode: getRegistrationMode(db),
     twoFactorPolicy: getTwoFactorPolicy(db),
     webEmbedsEnabled: getWebEmbedsEnabled(db),

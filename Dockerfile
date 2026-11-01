@@ -17,7 +17,11 @@ RUN npm_config_target_arch=${TARGETARCH} yarn build:app:docker
 # --- runtime: the server serves the API, the collab sockets and the app --------
 FROM node:24-slim AS runtime
 
+# set by the publishing workflow; "dev" for an image built from the sources
+ARG APP_VERSION=dev
+
 ENV NODE_ENV=production \
+    APP_VERSION=${APP_VERSION} \
     PORT=80 \
     DATA_DIR=/data \
     STATIC_DIR=/app/public

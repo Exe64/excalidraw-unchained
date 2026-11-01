@@ -1,8 +1,8 @@
 name: Publish Docker image
 
 # Builds the image (app + server) and publishes it to the GitHub Container
-# Registry: ghcr.io/<owner>/<repo>, tagged `latest` for main and with the
-# version for `v*` tags.
+# Registry: ghcr.io/<owner>/<repo>, tagged `sha-<commit>` for main, and with the
+# version and `latest` for `v*` tags (except pre-releases).
 
 on:
   push:
@@ -45,7 +45,6 @@ jobs:
         with:
           images: ${{ env.IMAGE }}
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,format=short
@@ -57,5 +56,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: APP_VERSION=${{ steps.meta.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
