@@ -1,3 +1,5 @@
+![Excalidraw Unchained](.github/assets/banner.jpg)
+
 # Excalidraw Unchained
 
 Un tableau blanc collaboratif au style « dessiné à la main », basé sur [Excalidraw](https://github.com/excalidraw/excalidraw), que vous hébergez vous-même. Vos dessins sont stockés sur votre serveur et l'accès est réservé aux personnes qui ont un compte.
