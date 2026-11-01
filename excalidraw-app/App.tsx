@@ -107,6 +107,7 @@ import {
 import {
   AdminDialog,
   adminDialogOpenAtom,
+  refreshAvailableUpdate,
   refreshPendingUsersCount,
 } from "./components/AdminDialog";
 import {
@@ -488,12 +489,17 @@ const ExcalidrawWrapper = () => {
   const currentDrawing = useAtomValue(currentDrawingAtom);
   const isReadOnlyDrawing = currentDrawing?.role === "view";
 
-  // administrators see the number of accounts waiting for approval
+  // administrators see the number of accounts waiting for approval and the
+  // available update
   useEffect(() => {
-    if (!isAdminDialogOpen) {
+    const refresh = () => {
       refreshPendingUsersCount();
+      refreshAvailableUpdate();
+    };
+    if (!isAdminDialogOpen) {
+      refresh();
     }
-    const interval = window.setInterval(refreshPendingUsersCount, 5 * 60e3);
+    const interval = window.setInterval(refresh, 5 * 60e3);
     return () => window.clearInterval(interval);
   }, [isAdminDialogOpen]);
 

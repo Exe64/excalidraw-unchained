@@ -23,12 +23,16 @@ export const adminDialogOpenAtom = atom(false);
 /** accounts waiting for approval, shown in the main menu */
 export const pendingUsersCountAtom = atom(0);
 
+/** the version an administrator can update to, shown in the main menu */
+export const availableUpdateAtom = atom<string | null>(null);
+
 type AdminUser = User & { drawings: number; ssoLinked: boolean };
 
 type AdminSettings = {
   registrationMode: RegistrationMode;
   twoFactorPolicy: TwoFactorPolicy;
   webEmbedsEnabled: boolean;
+  updateCheckEnabled: boolean;
   sso: {
     name: string;
     newUsers: "active" | "registration";
@@ -52,6 +56,32 @@ const fetchUsers = async () => {
 export const refreshPendingUsersCount = () => {
   if (appJotaiStore.get(currentUserAtom)?.isAdmin) {
     fetchUsers().catch(() => {});
+  }
+};
+
+type UpdateStatus = {
+  version: string;
+  latest: string | null;
+  available: boolean;
+  checkEnabled: boolean;
+  checkedAt: number | null;
+  checkError: string | null;
+};
+
+const publishUpdateStatus = (status: UpdateStatus) => {
+  appJotaiStore.set(
+    availableUpdateAtom,
+    status.available ? status.latest : null,
+  );
+  return status;
+};
+
+/** refreshes the update shown in the main menu (admins only) */
+export const refreshAvailableUpdate = () => {
+  if (appJotaiStore.get(currentUserAtom)?.isAdmin) {
+    apiRequest<UpdateStatus>("GET", "/admin/update")
+      .then(publishUpdateStatus)
+      .catch(() => {});
   }
 };
 
@@ -486,6 +516,105 @@ const BackupsSection = ({
   );
 };
 
+const UpdateSection = ({
+  onError,
+}: {
+  onError: (message: string | null) => void;
+}) => {
+  const { t } = useUnchainedI18n();
+  const [status, setStatus] = useState<UpdateStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const run = useCallback(
+    async (action: () => Promise<UpdateStatus>) => {
+      setBusy(true);
+      try {
+        setStatus(publishUpdateStatus(await action()));
+        onError(null);
+      } catch (error: any) {
+        onError(error.message);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [onError],
+  );
+
+  useEffect(() => {
+    run(() => apiRequest("GET", "/admin/update"));
+  }, [run]);
+
+  if (!status) {
+    return null;
+  }
+
+  const isRelease = /^\d+\.\d+\.\d+$/.test(status.version);
+
+  return (
+    <section className="AdminDialog__section">
+      <h3>{t("admin.update")}</h3>
+      <p className="AdminDialog__meta">
+        {t("admin.updateCurrent", { version: status.version })}
+      </p>
+      <label className="AdminDialog__radio">
+        <input
+          type="checkbox"
+          checked={status.checkEnabled}
+          disabled={busy}
+          onChange={(event) => {
+            const updateCheckEnabled = event.target.checked;
+            run(async () => {
+              await apiRequest("PUT", "/admin/settings", {
+                json: { updateCheckEnabled },
+              });
+              return apiRequest("GET", "/admin/update");
+            });
+          }}
+        />
+        <span>
+          <strong>{t("admin.updateCheckAllow")}</strong>
+          <span className="AdminDialog__meta">
+            {t("admin.updateCheckHint")}
+          </span>
+        </span>
+      </label>
+      {status.checkError && (
+        <div className="AdminDialog__error" role="alert">
+          {t("admin.updateCheckFailed", { error: status.checkError })}
+        </div>
+      )}
+      {status.available ? (
+        <div className="AdminDialog__update">
+          <strong>
+            {t("admin.updateAvailable", { version: status.latest ?? "" })}
+          </strong>
+          <span className="AdminDialog__meta">{t("admin.updateCommand")}</span>
+          <code>docker compose pull && docker compose up -d</code>
+        </div>
+      ) : (
+        !status.checkError &&
+        (!isRelease ? (
+          <p className="AdminDialog__meta">{t("admin.updateNotRelease")}</p>
+        ) : (
+          status.checkedAt && (
+            <p className="AdminDialog__meta">{t("admin.updateUpToDate")}</p>
+          )
+        ))
+      )}
+      <div className="AdminDialog__backupActions">
+        <button
+          type="button"
+          className="AdminDialog__button"
+          disabled={busy}
+          onClick={() => run(() => apiRequest("POST", "/admin/update/check"))}
+        >
+          {t("admin.updateCheckNow")}
+        </button>
+      </div>
+    </section>
+  );
+};
+
 export const AdminDialog = () => {
   const { t, langCode } = useUnchainedI18n();
   const [isOpen, setIsOpen] = useAtom(adminDialogOpenAtom);
@@ -563,6 +692,8 @@ export const AdminDialog = () => {
       className="AdminDialog"
     >
       {error && <div className="AdminDialog__error">{error}</div>}
+
+      <UpdateSection onError={setError} />
 
       <section className="AdminDialog__section">
         <h3>{t("admin.registration")}</h3>

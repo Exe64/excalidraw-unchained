@@ -2,6 +2,7 @@ import {
   LoadIcon,
   PlusIcon,
   brainIcon,
+  downloadIcon,
   settingsIcon,
   eyeIcon,
   historyIcon,
@@ -18,7 +19,7 @@ import { useUnchainedI18n } from "../app-language/unchained-i18n";
 import { useAtomValue } from "../app-jotai";
 import { currentUserAtom } from "../auth/auth";
 
-import { pendingUsersCountAtom } from "./AdminDialog";
+import { availableUpdateAtom, pendingUsersCountAtom } from "./AdminDialog";
 
 import { saveDebugState } from "./DebugCanvas";
 
@@ -70,6 +71,7 @@ export const AppMainMenu: React.FC<{
   const { t: tu } = useUnchainedI18n();
   const user = useAtomValue(currentUserAtom);
   const pendingUsersCount = useAtomValue(pendingUsersCountAtom);
+  const availableUpdate = useAtomValue(availableUpdateAtom);
   return (
     <MainMenu>
       <MainMenu.Item icon={LoadIcon} onSelect={props.onDrawingsDialogOpen}>
@@ -100,6 +102,15 @@ export const AppMainMenu: React.FC<{
       <MainMenu.DefaultItems.Help />
       <MainMenu.DefaultItems.ClearCanvas />
       <MainMenu.Separator />
+      {user?.isAdmin && availableUpdate && (
+        <MainMenu.Item
+          icon={downloadIcon}
+          onSelect={props.onAdminDialogOpen}
+          className="highlighted"
+        >
+          {tu("admin.updateAvailable", { version: availableUpdate })}
+        </MainMenu.Item>
+      )}
       {user?.isAdmin && (
         <MainMenu.Item
           icon={settingsIcon}

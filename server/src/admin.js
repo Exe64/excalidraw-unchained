@@ -29,9 +29,11 @@ import { config } from "./config.js";
 import {
   getRegistrationMode,
   getTwoFactorPolicy,
+  getUpdateCheckEnabled,
   getWebEmbedsEnabled,
   setRegistrationMode,
   setTwoFactorPolicy,
+  setUpdateCheckEnabled,
   setWebEmbedsEnabled,
   TWO_FACTOR_POLICIES,
 } from "./settings.js";
@@ -47,7 +49,7 @@ const countActiveAdmins = (db) =>
 
 export const registerAdminRoutes = (
   api,
-  { db, HttpError, requireSession, requestRestart },
+  { db, HttpError, requireSession, requestRestart, updates },
 ) => {
   const requireAdmin = (req, res, next) => {
     if (!req.user.is_admin) {
@@ -81,10 +83,10 @@ export const registerAdminRoutes = (
   api.use("/admin", requireSession, requireAdmin);
 
   const getSettings = () => ({
-    version: config.version,
     registrationMode: getRegistrationMode(db),
     twoFactorPolicy: getTwoFactorPolicy(db),
     webEmbedsEnabled: getWebEmbedsEnabled(db),
+    updateCheckEnabled: getUpdateCheckEnabled(db),
     sso: isSsoEnabled()
       ? {
           name: config.oidc.name,
@@ -98,9 +100,13 @@ export const registerAdminRoutes = (
     res.json(getSettings());
   });
 
-  api.put("/admin/settings", (req, res) => {
-    const { registrationMode, twoFactorPolicy, webEmbedsEnabled } =
-      req.body || {};
+  api.put("/admin/settings", async (req, res) => {
+    const {
+      registrationMode,
+      twoFactorPolicy,
+      webEmbedsEnabled,
+      updateCheckEnabled,
+    } = req.body || {};
     if (registrationMode !== undefined) {
       try {
         setRegistrationMode(db, registrationMode);
@@ -129,7 +135,29 @@ export const registerAdminRoutes = (
       }
       setWebEmbedsEnabled(db, webEmbedsEnabled);
     }
+    if (updateCheckEnabled !== undefined) {
+      if (typeof updateCheckEnabled !== "boolean") {
+        throw new HttpError(400, "Valeur inconnue pour les mises à jour.");
+      }
+      setUpdateCheckEnabled(db, updateCheckEnabled);
+      if (updateCheckEnabled) {
+        await updates.check();
+      }
+    }
     res.json(getSettings());
+  });
+
+  // new versions of the application
+  // ---------------------------------------------------------------------------
+
+  api.get("/admin/update", (req, res) => {
+    res.json(updates.getStatus());
+  });
+
+  /** explicit check, allowed even when the periodic checks are off */
+  api.post("/admin/update/check", async (req, res) => {
+    await updates.check();
+    res.json(updates.getStatus());
   });
 
   api.get("/admin/users", (req, res) => {

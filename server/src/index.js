@@ -8,6 +8,7 @@ import { attachCollab } from "./collab.js";
 import { config } from "./config.js";
 import { openDatabase } from "./db.js";
 import { applyPendingRestore, scheduleBackups } from "./backups.js";
+import { createUpdates } from "./updates.js";
 
 if (applyPendingRestore(config.dataDir)) {
   console.log("Restored the database from a backup.");
@@ -59,7 +60,10 @@ cleanup();
 scheduleBackups(db);
 setInterval(cleanup, 60 * 60 * 1000).unref();
 
-const app = createApp(db);
+const updates = createUpdates(db);
+updates.schedule();
+
+const app = createApp(db, { updates });
 const server = http.createServer(app);
 attachCollab(server, db);
 

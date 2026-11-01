@@ -293,6 +293,18 @@ const en = {
   "admin.webEmbedsAllow": "Allow third-party web embeds",
   "admin.webEmbedsHint":
     "YouTube, Vimeo, Figma… Their content is loaded from these services by everyone who opens the drawing. When off, only the link is shown. Applies the next time the app is loaded.",
+  "admin.update": "Updates",
+  "admin.updateCurrent": "Installed version: {{version}}",
+  "admin.updateCheckAllow": "Check for new versions",
+  "admin.updateCheckHint":
+    "The server regularly asks the image registry (ghcr.io) for the available versions. When off, it only asks when you press the button below.",
+  "admin.updateCheckNow": "Check now",
+  "admin.updateAvailable": "Update {{version}} available",
+  "admin.updateUpToDate": "This is the latest version.",
+  "admin.updateNotRelease":
+    "This image isn't a published version: no update can be offered.",
+  "admin.updateCheckFailed": "The check failed: {{error}}",
+  "admin.updateCommand": "To install it, run this on the server:",
   "admin.tfaAdmins": "Required for administrators",
   "admin.tfaAll": "Required for everyone",
   "admin.tfaRequiredHint":
@@ -591,6 +603,18 @@ const fr: Partial<Record<Key, string>> = {
   "admin.webEmbedsAllow": "Autoriser les intégrations web de services tiers",
   "admin.webEmbedsHint":
     "YouTube, Vimeo, Figma… Leur contenu est chargé depuis ces services par toute personne qui ouvre le dessin. Sinon, seul le lien s'affiche. S'applique au prochain chargement de l'application.",
+  "admin.update": "Mises à jour",
+  "admin.updateCurrent": "Version installée : {{version}}",
+  "admin.updateCheckAllow": "Rechercher les nouvelles versions",
+  "admin.updateCheckHint":
+    "Le serveur interroge régulièrement le registre d'images (ghcr.io) pour connaître les versions disponibles. Sinon, il ne l'interroge que lorsque vous utilisez le bouton ci-dessous.",
+  "admin.updateCheckNow": "Vérifier maintenant",
+  "admin.updateAvailable": "Mise à jour {{version}} disponible",
+  "admin.updateUpToDate": "C'est la dernière version.",
+  "admin.updateNotRelease":
+    "Cette image n'est pas une version publiée : aucune mise à jour ne peut être proposée.",
+  "admin.updateCheckFailed": "La vérification a échoué : {{error}}",
+  "admin.updateCommand": "Pour l'installer, lancez ceci sur le serveur :",
   "admin.tfaAdmins": "Obligatoire pour les administrateurs",
   "admin.tfaAll": "Obligatoire pour tous",
   "admin.tfaRequiredHint":

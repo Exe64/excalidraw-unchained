@@ -34,6 +34,7 @@ import { registerAdminRoutes } from "./admin.js";
 import { registerDrawingRoutes } from "./drawingRoutes.js";
 import { config } from "./config.js";
 import { getContentSecurityPolicy } from "./csp.js";
+import { createUpdates } from "./updates.js";
 import { transaction } from "./db.js";
 import {
   getRegistrationMode,
@@ -441,6 +442,7 @@ export const createApp = (db, opts = {}) => {
     requestRestart:
       opts.requestRestart ??
       (() => setTimeout(() => process.kill(process.pid, "SIGTERM"), 500)),
+    updates: opts.updates ?? createUpdates(db, { fetchFn: opts.fetchFn }),
   });
   registerDrawingRoutes(api, { db, HttpError });
 
