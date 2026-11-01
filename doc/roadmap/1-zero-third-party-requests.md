@@ -66,7 +66,7 @@ Le cœur de l'application est déjà auto-hébergé, mais des dépendances à de
 ## Décisions techniques
 
 | Décision | Choix retenu | Justification |
-| --- | --- | --- |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Catalogue de bibliothèques | Conservé, parcours et publication | Action explicite, n'empêche pas un usage on-prem, aucun patch à maintenir |
 | Google Fonts | `preconnect` conservés | Aucune police chargée depuis Google, sans effet bloquant on-prem |
 | `esm.sh` | Retiré | Charge des polices d'une version non fixée et masquerait une installation cassée |
@@ -76,8 +76,7 @@ Le cœur de l'application est déjà auto-hébergé, mais des dépendances à de
 | Test en CI | Liste de domaines interdits, sans liste autorisée | Une liste autorisée casserait souvent aux merges ; la CSP couvre les domaines inconnus |
 | CSP et scripts inline | `'unsafe-inline'` avec commentaire `ponytail:` | L'objectif est de contrôler les sorties ; limite la protection XSS, empreintes possibles plus tard |
 | Livraison | Une branche partie de `main`, une PR par lot | Chaque merge publie l'image Docker ; la CSP doit pouvoir être annulée seule |
-
-| Analytics | Drapeaux retirés, `analytics.ts` inchangé | `window.sa_event` n'est jamais défini : le code est inerte, un patch n'apporterait rien | | Page et service worker | `index.html` en « réseau d'abord » | Sinon la CSP mise en cache figerait le réglage des intégrations | | Import d'image par URL | Bloqué par la CSP et documenté | Ouvrir `connect-src` à tout HTTPS retirerait l'intérêt de la CSP |
+| Analytics | Drapeaux retirés, `analytics.ts` inchangé | `window.sa_event` n'est jamais défini : le code est inerte, un patch n'apporterait rien |  | Page et service worker | `index.html` en « réseau d'abord » | Sinon la CSP mise en cache figerait le réglage des intégrations |  | Import d'image par URL | Bloqué par la CSP et documenté | Ouvrir `connect-src` à tout HTTPS retirerait l'intérêt de la CSP |
 
 **Iframe de Wireframe vers code :** les scripts inline s'exécutent et un script CDN est bloqué. Pas d'assouplissement : le prompt serveur demande déjà du HTML sans ressource externe.
 
