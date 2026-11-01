@@ -33,6 +33,7 @@ import { diagramToCodeHandler, getAiInfo, textToDiagramHandler } from "./ai.js";
 import { registerAdminRoutes } from "./admin.js";
 import { registerDrawingRoutes } from "./drawingRoutes.js";
 import { config } from "./config.js";
+import { getContentSecurityPolicy } from "./csp.js";
 import { transaction } from "./db.js";
 import {
   getRegistrationMode,
@@ -660,6 +661,13 @@ export const createApp = (db, opts = {}) => {
 
   if (config.staticDir) {
     const indexHtml = path.join(config.staticDir, "index.html");
+    app.use((req, res, next) => {
+      res.setHeader(
+        "Content-Security-Policy",
+        getContentSecurityPolicy({ webEmbedsEnabled: getWebEmbedsEnabled(db) }),
+      );
+      next();
+    });
     app.use(
       express.static(config.staticDir, {
         index: false,

@@ -227,6 +227,7 @@ Tests et vérifications :
 yarn test:server       # API, authentification, collaboration (node:test)
 yarn test:app          # tests de l'app et de l'éditeur (vitest)
 yarn test:typecheck && yarn test:code && yarn test:other
+yarn build:app:docker && yarn test:third-party   # aucun service tiers retiré dans le build
 ```
 
 ## Architecture
@@ -269,7 +270,7 @@ server/                  Node.js + Express + Socket.IO + SQLite
 
 Retirés car liés aux services d'excalidraw.com : promotions et export vers Excalidraw+, analytics, Sentry, polices chargées depuis un CDN (elles sont servies par le serveur, sans recours externe), liens vers les réseaux sociaux, le blog et GitHub. Les fonctions IA passent par votre serveur et le fournisseur que vous configurez.
 
-Une instance n'envoie rien à un tiers sans action explicite de l'utilisateur. Restent externes :
+Une instance n'envoie rien à un tiers sans action explicite de l'utilisateur, et le serveur envoie une politique de sécurité (CSP) qui le fait respecter par le navigateur. Elle bloque aussi l'import d'une image à partir de son adresse web : enregistrez l'image, puis insérez le fichier. Restent externes :
 
 - le **catalogue public de bibliothèques** : ouvert seulement quand on clique sur « Parcourir les bibliothèques » ; la publication passe par un formulaire qui envoie la bibliothèque à ce catalogue ;
 - le lien vers la **documentation** d'Excalidraw dans l'aide, ouvert seulement au clic ;
