@@ -78,6 +78,22 @@ describe("registration and administration", () => {
     assert.equal((await request("GET", "/auth/config")).body.needsSetup, false);
   });
 
+  it("keeps web embeds off until an administrator allows them", async () => {
+    const isEnabled = async () =>
+      (await request("GET", "/auth/config")).body.webEmbedsEnabled;
+    const update = (webEmbedsEnabled) =>
+      request("PUT", "/admin/settings", { webEmbedsEnabled }, admin);
+
+    assert.equal(await isEnabled(), false);
+    assert.equal((await update("yes")).status, 400);
+    assert.equal(await isEnabled(), false);
+
+    assert.equal((await update(true)).body.webEmbedsEnabled, true);
+    assert.equal(await isEnabled(), true);
+    assert.equal((await update(false)).body.webEmbedsEnabled, false);
+    assert.equal(await isEnabled(), false);
+  });
+
   it("refuses sign-ups while registration is closed", async () => {
     const res = await request("POST", "/auth/register", {
       username: "alice",

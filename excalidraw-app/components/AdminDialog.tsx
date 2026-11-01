@@ -28,6 +28,7 @@ type AdminUser = User & { drawings: number; ssoLinked: boolean };
 type AdminSettings = {
   registrationMode: RegistrationMode;
   twoFactorPolicy: TwoFactorPolicy;
+  webEmbedsEnabled: boolean;
   sso: {
     name: string;
     newUsers: "active" | "registration";
@@ -632,6 +633,25 @@ export const AdminDialog = () => {
             </span>
           </label>
         ))}
+      </section>
+
+      <section className="AdminDialog__section">
+        <h3>{t("admin.webEmbeds")}</h3>
+        <label className="AdminDialog__radio">
+          <input
+            type="checkbox"
+            checked={!!settings?.webEmbedsEnabled}
+            onChange={(event) =>
+              updateSettings({ webEmbedsEnabled: event.target.checked })
+            }
+          />
+          <span>
+            <strong>{t("admin.webEmbedsAllow")}</strong>
+            <span className="AdminDialog__meta">
+              {t("admin.webEmbedsHint")}
+            </span>
+          </span>
+        </label>
       </section>
 
       {users === null ? (

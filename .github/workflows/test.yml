@@ -19,3 +19,7 @@ jobs:
           yarn install
           yarn test:app --watch=false
           yarn test:server
+      - name: Check the build for removed third parties
+        run: |
+          yarn build:app:docker
+          yarn test:third-party

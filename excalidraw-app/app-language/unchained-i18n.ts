@@ -289,6 +289,10 @@ const en = {
     "Single sign-on (SSO) isn't configured (OIDC_* variables of the server).",
   "admin.tfaOptional": "Optional",
   "admin.tfaOptionalHint": 'Everyone chooses, from "My account".',
+  "admin.webEmbeds": "Web embeds",
+  "admin.webEmbedsAllow": "Allow third-party web embeds",
+  "admin.webEmbedsHint":
+    "YouTube, Vimeo, Figma… Their content is loaded from these services by everyone who opens the drawing. When off, only the link is shown. Applies the next time the app is loaded.",
   "admin.tfaAdmins": "Required for administrators",
   "admin.tfaAll": "Required for everyone",
   "admin.tfaRequiredHint":
@@ -583,6 +587,10 @@ const fr: Partial<Record<Key, string>> = {
     "La connexion unique (SSO) n'est pas configurée (variables OIDC_* du serveur).",
   "admin.tfaOptional": "Facultative",
   "admin.tfaOptionalHint": "Chacun choisit, depuis « Mon compte ».",
+  "admin.webEmbeds": "Intégrations web",
+  "admin.webEmbedsAllow": "Autoriser les intégrations web de services tiers",
+  "admin.webEmbedsHint":
+    "YouTube, Vimeo, Figma… Leur contenu est chargé depuis ces services par toute personne qui ouvre le dessin. Sinon, seul le lien s'affiche. S'applique au prochain chargement de l'application.",
   "admin.tfaAdmins": "Obligatoire pour les administrateurs",
   "admin.tfaAll": "Obligatoire pour tous",
   "admin.tfaRequiredHint":
