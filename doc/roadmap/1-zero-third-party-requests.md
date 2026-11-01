@@ -8,6 +8,7 @@ date: 2026-11-01
 description: >
   Faire en sorte qu'une instance n'émette aucune requête tierce sans action explicite de l'utilisateur, et le vérifier.
 
+
 priority: high
 complexity: L
 intent: null
