@@ -286,13 +286,11 @@ export default defineConfig(({ mode }) => {
             // via a static import from the main bundle, defeating lazy
             // loading. So we exclude it by name instead.
             "**/CodeMirrorEditor-*.js",
+            // comes from the network first (see runtimeCaching): it carries the
+            // Content-Security-Policy, which depends on the instance's settings
+            "index.html",
           ],
-          // the server handles these, never serve the app shell for them
-          navigateFallbackDenylist: [
-            /^\/api\//,
-            /^\/mcp(\/|$)/,
-            /^\/socket\.io\//,
-          ],
+          navigateFallback: null,
           // mermaid chunks are excluded here rather than via `globIgnores`
           // as their file names are arbitrary
           manifestTransforms: [
@@ -304,6 +302,17 @@ export default defineConfig(({ mode }) => {
             }),
           ],
           runtimeCaching: [
+            {
+              // the server handles these, never serve the app shell for them
+              urlPattern: ({ request, url }) =>
+                request.mode === "navigate" &&
+                !/^\/(api|mcp|socket\.io)(\/|$)/.test(url.pathname),
+              handler: "NetworkFirst",
+              options: {
+                cacheName: "app-shell",
+                networkTimeoutSeconds: 5,
+              },
+            },
             {
               urlPattern: new RegExp(".+.woff2"),
               handler: "CacheFirst",

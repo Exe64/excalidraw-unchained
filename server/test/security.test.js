@@ -7,6 +7,7 @@ import { after, before, beforeEach, describe, it } from "node:test";
 
 import { createApp } from "../src/app.js";
 import { config } from "../src/config.js";
+import { getContentSecurityPolicy } from "../src/csp.js";
 import { openDatabase } from "../src/db.js";
 import { resetSsoState } from "../src/sso.js";
 import { totpCode, totpStep } from "../src/totp.js";
@@ -169,6 +170,17 @@ after(() => {
   }
   config.oidc.issuer = "";
   config.oidc.clientId = "";
+});
+
+describe("Content-Security-Policy", () => {
+  it("blocks third parties unless web embeds are allowed", () => {
+    const blocked = getContentSecurityPolicy({ webEmbedsEnabled: false });
+    const allowed = getContentSecurityPolicy({ webEmbedsEnabled: true });
+    assert.doesNotMatch(blocked, /https:(?!\/\/)/);
+    assert.match(allowed, /frame-src [^;]*https:(?!\/\/)/);
+    // embeds never open up what the app itself can send out
+    assert.doesNotMatch(allowed, /connect-src [^;]*https:(?!\/\/)/);
+  });
 });
 
 describe("two-factor authentication", () => {
