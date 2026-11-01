@@ -241,7 +241,7 @@ excalidraw-app/          l'app web (fork d'excalidraw.com)
   components/VersionHistoryDialog.tsx  historique des versions
   components/AccountDialog.tsx   « Mon compte »
   components/AdminDialog.tsx     écran d'administration (comptes, sauvegardes)
-packages/                l'éditeur Excalidraw, inchangé
+packages/                l'éditeur Excalidraw, avec de petits patchs (voir plus bas)
 server/                  Node.js + Express + Socket.IO + SQLite
   src/app.js             API REST (auth, bibliothèque, salles, liens)
   src/drawingRoutes.js   API des dessins, dossiers, partages, corbeille, fichiers
@@ -266,7 +266,14 @@ server/                  Node.js + Express + Socket.IO + SQLite
 
 ## Différences avec excalidraw.com
 
-Retirés car liés aux services commerciaux d'excalidraw.com : promotions et export vers Excalidraw+, analytics, Sentry, polices chargées depuis le CDN d'excalidraw.com (elles sont désormais servies par le serveur). Les fonctions IA passent par votre serveur et le fournisseur que vous configurez. Seul le catalogue public de bibliothèques (`VITE_APP_LIBRARY_URL`) reste un service externe.
+Retirés car liés aux services d'excalidraw.com : promotions et export vers Excalidraw+, analytics, Sentry, polices chargées depuis un CDN (elles sont servies par le serveur, sans recours externe), liens vers les réseaux sociaux, le blog et GitHub. Les fonctions IA passent par votre serveur et le fournisseur que vous configurez.
+
+Une instance n'envoie rien à un tiers sans action explicite de l'utilisateur. Restent externes :
+
+- le **catalogue public de bibliothèques** : ouvert seulement quand on clique sur « Parcourir les bibliothèques » ; la publication passe par un formulaire qui envoie la bibliothèque à ce catalogue ;
+- le lien vers la **documentation** d'Excalidraw dans l'aide, ouvert seulement au clic ;
+- les **services que vous configurez** : fournisseur d'IA et fournisseur d'identité ;
+- deux indications `preconnect` vers Google Fonts dans la page : elles peuvent ouvrir une connexion, mais aucune police n'est chargée depuis Google et l'application fonctionne sans Internet.
 
 ## Suivre les évolutions d'Excalidraw
 
@@ -277,7 +284,7 @@ git remote add upstream https://github.com/excalidraw/excalidraw.git
 git fetch upstream && git merge upstream/master
 ```
 
-Les modifications sont concentrées dans `excalidraw-app/` et `server/` ; le paquet `packages/excalidraw` (l'éditeur) n'est pas modifié, ce qui limite les conflits.
+Les modifications sont concentrées dans `excalidraw-app/` et `server/`, ce qui limite les conflits. Le paquet `packages/excalidraw` (l'éditeur) n'a que de petits patchs, nécessaires pour retirer les dépendances externes : recours aux polices (`fonts/ExcalidrawFontFace.ts`), liens de l'aide et du menu (`components/HelpDialog.tsx`, `components/main-menu/DefaultItems.tsx`), message pour Brave (`components/BraveMeasureTextError.tsx`) et bouton Excalidraw+ (`components/TTDDialog/Chat/ChatMessage.tsx`).
 
 ## Licence
 

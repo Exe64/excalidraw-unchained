@@ -1,11 +1,10 @@
 import Trans from "@excalidraw/excalidraw/components/Trans";
 import { t } from "@excalidraw/excalidraw/i18n";
-import * as Sentry from "@sentry/browser";
 import React from "react";
 
 interface TopErrorBoundaryState {
   hasError: boolean;
-  sentryEventId: string;
+  errorDetails: string;
   localStorage: string;
 }
 
@@ -15,7 +14,7 @@ export class TopErrorBoundary extends React.Component<
 > {
   state: TopErrorBoundaryState = {
     hasError: false,
-    sentryEventId: "",
+    errorDetails: "",
     localStorage: "",
   };
 
@@ -33,15 +32,10 @@ export class TopErrorBoundary extends React.Component<
       }
     }
 
-    Sentry.withScope((scope) => {
-      scope.setExtras(errorInfo);
-      const eventId = Sentry.captureException(error);
-
-      this.setState((state) => ({
-        hasError: true,
-        sentryEventId: eventId,
-        localStorage: JSON.stringify(_localStorage),
-      }));
+    this.setState({
+      hasError: true,
+      errorDetails: `${error.stack || error}${errorInfo?.componentStack || ""}`,
+      localStorage: JSON.stringify(_localStorage),
     });
   }
 
@@ -50,26 +44,6 @@ export class TopErrorBoundary extends React.Component<
       event.preventDefault();
       (event.target as HTMLTextAreaElement).select();
     }
-  }
-
-  private async createGithubIssue() {
-    let body = "";
-    try {
-      const templateStrFn = (
-        await import(
-          /* webpackChunkName: "bug-issue-template" */ "../bug-issue-template"
-        )
-      ).default;
-      body = encodeURIComponent(templateStrFn(this.state.sentryEventId));
-    } catch (error: any) {
-      console.error(error);
-    }
-
-    window.open(
-      `https://github.com/excalidraw/excalidraw/issues/new?body=${body}`,
-      "_blank",
-      "noopener noreferrer",
-    );
   }
 
   private errorSplash() {
@@ -115,17 +89,15 @@ export class TopErrorBoundary extends React.Component<
           </div>
           <div>
             <div className="ErrorSplash-paragraph">
-              {t("errorSplash.trackedToSentry", {
-                eventId: this.state.sentryEventId,
-              })}
-            </div>
-            <div className="ErrorSplash-paragraph">
-              <Trans
-                i18nKey="errorSplash.openIssueMessage"
-                button={(el) => (
-                  <button onClick={() => this.createGithubIssue()}>{el}</button>
-                )}
-              />
+              <div className="ErrorSplash-details">
+                <label>{t("errorSplash.errorDetails")}</label>
+                <textarea
+                  rows={5}
+                  onPointerDown={this.selectTextArea}
+                  readOnly={true}
+                  value={this.state.errorDetails}
+                />
+              </div>
             </div>
             <div className="ErrorSplash-paragraph">
               <div className="ErrorSplash-details">
