@@ -1,13 +1,13 @@
 ---
 plan:
-  id: '1'
+  id: "1"
   name: 1-zero-third-party-requests.md
   link: https://github.com/Exe64/excalidraw-unchained/blob/main/doc/roadmap/1-zero-third-party-requests.md
 status: active
 date: 2026-11-01
 description: >
-  Faire en sorte qu'une instance n'émette aucune requête tierce sans action
-  explicite de l'utilisateur, et le vérifier.
+  Faire en sorte qu'une instance n'émette aucune requête tierce sans action explicite de l'utilisateur, et le vérifier.
+
 priority: high
 complexity: L
 intent: null
@@ -34,6 +34,7 @@ Le cœur de l'application est déjà auto-hébergé, mais des dépendances à de
 ## Périmètre
 
 ### Inclus
+
 - Retrait de Sentry et des analytics
 - Retrait du recours `esm.sh` pour les polices
 - `og:image` servie par l'instance
@@ -43,6 +44,7 @@ Le cœur de l'application est déjà auto-hébergé, mais des dépendances à de
 - Correction du README
 
 ### Hors scope
+
 - Catalogue de bibliothèques : « Parcourir » et « Publier » sont conservés et documentés
 - `preconnect` Google Fonts : conservés, à noter comme exception connue dans le README
 - Lien vers `docs.excalidraw.com` dans l'aide : conservé
@@ -63,7 +65,7 @@ Le cœur de l'application est déjà auto-hébergé, mais des dépendances à de
 ## Décisions techniques
 
 | Décision | Choix retenu | Justification |
-|----------|-------------|---------------|
+| --- | --- | --- |
 | Catalogue de bibliothèques | Conservé, parcours et publication | Action explicite, n'empêche pas un usage on-prem, aucun patch à maintenir |
 | Google Fonts | `preconnect` conservés | Aucune police chargée depuis Google, sans effet bloquant on-prem |
 | `esm.sh` | Retiré | Charge des polices d'une version non fixée et masquerait une installation cassée |
@@ -85,11 +87,12 @@ Le cœur de l'application est déjà auto-hébergé, mais des dépendances à de
 ### Résultats joués et vérifiés
 
 | Date | Test | Attendu | Observé | Verdict |
-|------|------|---------|---------|---------|
+| ---- | ---- | ------- | ------- | ------- |
 
 ## Journal de session
 
 ### Session 2026-11-01
+
 - ✅ Fait : inventaire statique des dépendances tierces, cadrage, création du plan et de l'issue #1
 - 🔄 En cours : rien
 - 📋 Prochain : étape 1, sur une branche partie de `main`
