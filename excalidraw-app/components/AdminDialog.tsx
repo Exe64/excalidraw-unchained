@@ -66,6 +66,15 @@ type UpdateStatus = {
   checkEnabled: boolean;
   checkedAt: number | null;
   checkError: string | null;
+  /** the updater service; null if it isn't enabled or can't be reached */
+  installer: {
+    state: "idle" | "running" | "succeeded" | "failed";
+    target?: string;
+    error?: string;
+    rolledBack?: boolean;
+  } | null;
+  installing: boolean;
+  otherUsers: number;
 };
 
 const publishUpdateStatus = (status: UpdateStatus) => {
@@ -524,6 +533,32 @@ const UpdateSection = ({
   const { t } = useUnchainedI18n();
   const [status, setStatus] = useState<UpdateStatus | null>(null);
   const [busy, setBusy] = useState(false);
+  /** the server stopped responding while installing an update */
+  const [restarting, setRestarting] = useState(false);
+
+  const isInstalling =
+    restarting ||
+    !!status?.installing ||
+    status?.installer?.state === "running";
+
+  useEffect(() => {
+    if (!isInstalling) {
+      return;
+    }
+    const interval = window.setInterval(async () => {
+      try {
+        setStatus(
+          publishUpdateStatus(
+            await apiRequest<UpdateStatus>("GET", "/admin/update"),
+          ),
+        );
+        setRestarting(false);
+      } catch {
+        setRestarting(true);
+      }
+    }, 3000);
+    return () => window.clearInterval(interval);
+  }, [isInstalling]);
 
   const run = useCallback(
     async (action: () => Promise<UpdateStatus>) => {
@@ -560,7 +595,6 @@ const UpdateSection = ({
         <input
           type="checkbox"
           checked={status.checkEnabled}
-          disabled={busy}
           onChange={(event) => {
             const updateCheckEnabled = event.target.checked;
             run(async () => {
@@ -583,13 +617,70 @@ const UpdateSection = ({
           {t("admin.updateCheckFailed", { error: status.checkError })}
         </div>
       )}
-      {status.available ? (
+      {status.installer?.state === "failed" && !isInstalling && (
+        <div className="AdminDialog__error" role="alert">
+          {t("admin.updateFailed", {
+            version: status.installer.target ?? "",
+            error: status.installer.error ?? "",
+          })}{" "}
+          {status.installer.rolledBack
+            ? t("admin.updateRolledBack")
+            : t("admin.updateNotRolledBack")}
+        </div>
+      )}
+      {status.installer?.state === "succeeded" &&
+        status.installer.target === status.version && (
+          <div className="AdminDialog__notice" role="status">
+            {t("admin.updateSucceeded", { version: status.version })}
+          </div>
+        )}
+      {isInstalling ? (
+        <div className="AdminDialog__notice" role="status">
+          <Spinner />
+          {restarting
+            ? t("admin.updateRestarting")
+            : t("admin.updateInstalling", { version: status.latest ?? "" })}
+        </div>
+      ) : status.available ? (
         <div className="AdminDialog__update">
           <strong>
             {t("admin.updateAvailable", { version: status.latest ?? "" })}
           </strong>
-          <span className="AdminDialog__meta">{t("admin.updateCommand")}</span>
-          <code>docker compose pull && docker compose up -d</code>
+          {status.installer ? (
+            <div className="AdminDialog__backupActions">
+              <button
+                type="button"
+                className="AdminDialog__button AdminDialog__button--primary"
+                disabled={busy}
+                onClick={() => {
+                  const version = status.latest;
+                  if (
+                    window.confirm(
+                      t("admin.updateConfirm", {
+                        version: version ?? "",
+                        count: String(status.otherUsers),
+                      }),
+                    )
+                  ) {
+                    run(() =>
+                      apiRequest("POST", "/admin/update", {
+                        json: { version },
+                      }),
+                    );
+                  }
+                }}
+              >
+                {t("admin.updateInstall")}
+              </button>
+            </div>
+          ) : (
+            <>
+              <span className="AdminDialog__meta">
+                {t("admin.updateCommand")}
+              </span>
+              <code>docker compose pull && docker compose up -d</code>
+            </>
+          )}
         </div>
       ) : (
         !status.checkError &&
@@ -605,8 +696,10 @@ const UpdateSection = ({
         <button
           type="button"
           className="AdminDialog__button"
-          disabled={busy}
-          onClick={() => run(() => apiRequest("POST", "/admin/update/check"))}
+          disabled={isInstalling}
+          onClick={() =>
+            !busy && run(() => apiRequest("POST", "/admin/update/check"))
+          }
         >
           {t("admin.updateCheckNow")}
         </button>
