@@ -8,6 +8,7 @@ date: 2026-11-01
 description: >
   Permettre à un admin de mettre à jour une instance depuis l'application, avec sauvegarde préalable et retour à l'image précédente en cas d'échec.
 
+
 priority: medium
 complexity: L
 intent: null
