@@ -66,6 +66,16 @@ export const getWebEmbedsEnabled = (db) =>
 export const setWebEmbedsEnabled = (db, enabled) =>
   setSetting(db, "web_embeds_enabled", String(enabled));
 
+/**
+ * Whether the server asks the image registry for new versions of the
+ * application. Off until an administrator allows it.
+ */
+export const getUpdateCheckEnabled = (db) =>
+  getSetting(db, "update_check_enabled") === "true";
+
+export const setUpdateCheckEnabled = (db, enabled) =>
+  setSetting(db, "update_check_enabled", String(enabled));
+
 /** whether `user` (a database row) must use two-factor authentication */
 export const isTwoFactorRequired = (db, user) => {
   const policy = getTwoFactorPolicy(db);

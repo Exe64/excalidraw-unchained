@@ -27,6 +27,10 @@ const defaultStaticDir = path.resolve(__dirname, "../../excalidraw-app/build");
 export const config = {
   /** version of this image (X.Y.Z for a release), see the Dockerfile */
   version: process.env.APP_VERSION || "dev",
+  update: {
+    /** image of the releases: a public image, in a registry */
+    image: process.env.UPDATE_IMAGE || "ghcr.io/exe64/excalidraw-unchained",
+  },
   port: Number(process.env.PORT || 3005),
   host: process.env.HOST || "0.0.0.0",
   dataDir: path.resolve(

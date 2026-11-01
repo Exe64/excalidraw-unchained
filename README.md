@@ -89,6 +89,7 @@ Les administrateurs disposent du menu ☰ > **Administration**, qui affiche auss
 - **Double authentification** : _facultative_, _obligatoire pour les administrateurs_ ou _obligatoire pour tous_. Pour l'exiger, l'administrateur doit d'abord l'avoir activée sur son propre compte ;
 - **Intégrations web** : désactivées par défaut. Si vous les autorisez, le contenu (YouTube, Vimeo, Figma…) est chargé depuis ces services par toute personne qui ouvre le dessin. Sinon, seul le lien s'affiche ;
 - **Comptes** : créer un compte, réinitialiser un mot de passe (l'utilisateur est déconnecté partout) ou en définir un pour un compte créé par SSO, réinitialiser la double authentification (téléphone perdu), donner ou retirer les droits d'administrateur, supprimer un compte avec ses dessins. Les comptes liés au SSO et ceux qui utilisent la double authentification sont signalés. L'application garde toujours au moins un administrateur actif.
+- **Mises à jour** : affiche la version installée. La recherche de nouvelles versions est désactivée par défaut, car elle interroge `ghcr.io` ; le bouton « Vérifier maintenant » reste disponible. Une version disponible est aussi signalée dans le menu ☰ ;
 - **Sauvegardes** : la base est sauvegardée automatiquement (toutes les 24 h par défaut, les 14 dernières sont gardées) dans `/data/backups`. L'écran liste les sauvegardes et permet d'en faire une à la demande, de les télécharger, de les supprimer et de **restaurer** l'instance, à partir d'une sauvegarde de la liste ou d'un fichier envoyé. Avant de restaurer, une sauvegarde de l'état actuel est faite ; le serveur redémarre ensuite pour appliquer la restauration, puis la page se recharge.
 
 ### Personnaliser
@@ -163,6 +164,7 @@ Le flux utilisé est le flux « code d'autorisation » avec PKCE ; l'ID token es
 | `AI_MODEL` | `claude-opus-5-5` pour Claude | Modèle à utiliser (obligatoire pour `openai`) |
 | `AI_BASE_URL` | `https://api.openai.com/v1` pour `openai` | URL de l'API, ex. `https://api.mistral.ai/v1`, `http://ollama:11434/v1` |
 | `AI_EFFORT` | `medium` | Claude uniquement : `low`, `medium`, `high`, `xhigh`, `max` |
+| `UPDATE_IMAGE` | `ghcr.io/exe64/excalidraw-unchained` | Image publique dont les tags indiquent les versions disponibles |
 | `BACKUP_INTERVAL_HOURS` | `24` | Intervalle des sauvegardes automatiques (`0` = désactivées) |
 | `BACKUP_KEEP` | `14` | Nombre de sauvegardes automatiques conservées (les manuelles ne sont jamais supprimées automatiquement) |
 | `AI_REQUESTS_PER_DAY` | `200` | Quota de requêtes IA par utilisateur et par jour (`0` = illimité) |
