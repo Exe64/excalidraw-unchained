@@ -2,8 +2,8 @@
 plan:
   id: "1"
   name: 1-zero-third-party-requests.md
-  link: https://github.com/Exe64/excalidraw-unchained/blob/main/doc/roadmap/1-zero-third-party-requests.md
-status: active
+  link: https://github.com/Exe64/excalidraw-unchained/blob/main/doc/roadmap/done/1-zero-third-party-requests.md
+status: done
 date: 2026-11-01
 description: >
   Faire en sorte qu'une instance n'émette aucune requête tierce sans action explicite de l'utilisateur, et le vérifier.
@@ -61,7 +61,7 @@ Le cœur de l'application est déjà auto-hébergé, mais des dépendances à de
 - [x] Étape 5 — Lot 3 : envoyer la CSP depuis le serveur, en l'adaptant au réglage des intégrations (L · reasoning → Opus)
 - [x] Étape 6 — Lot 3 : ajouter le test en CI sur le build (S · standard → Sonnet)
 - [x] 🧪 Tests — Rédiger et exécuter la procédure de test
-- [ ] ✅ Validation — Vérifier les résultats des tests et clôturer
+- [x] ✅ Validation — Vérifier les résultats des tests et clôturer
 
 ## Décisions techniques
 
@@ -147,6 +147,7 @@ Verdict du vérificateur indépendant, sur le commit `ca89ddaa` : **PASS**.
 
 - ✅ Fait : inventaire statique des dépendances tierces, cadrage, création du plan et de l'issue #1
 - ✅ Fait : implémentation des 3 lots, tests finaux validés par le vérificateur, PR ouvertes
-- 🔄 En cours : revue et merge des PR par l'opérateur
-- 📋 Prochain : après merge, ✅ Validation et clôture du plan et de l'issue #1
+- ✅ Validation : PR #2 et #5 mergées dans `main`, CI au vert, verdict PASS du vérificateur sur le même code (seul le workflow `coverage` a changé depuis)
+- 🔄 En cours : rien
+- 📋 Prochain : rien sur ce plan ; la branche par défaut de GitHub reste à changer (hors périmètre)
 - 🚧 Blocages : aucun

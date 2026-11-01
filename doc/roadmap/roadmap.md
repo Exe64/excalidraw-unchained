@@ -13,15 +13,13 @@ Backlog consolidé : plans nommés d'après leur issue GitHub (voir `doc/roadmap
 
 ## À faire
 
-### [Issue: #1] Zero Third Party Requests [PRIORITÉ: HAUTE] [Complexité: L] 🟢
-
-Plan : [`1-zero-third-party-requests.md`](1-zero-third-party-requests.md)
-
-Retirer les dépendances tierces restantes, ajouter le réglage admin des intégrations web, la CSP et le test en CI.
-
 ---
 
 ## Fait
+
+### Plans livrés (2026-11-01 → 2026-11-01)
+
+- **[Issue: #1] `#1` — Zero Third Party Requests** (2026-11-01) 🔵 — Retrait des dépendances tierces, réglage admin des intégrations web, CSP et contrôle du build en CI. [`1-zero-third-party-requests.md`](done/1-zero-third-party-requests.md)
 
 ---
 
