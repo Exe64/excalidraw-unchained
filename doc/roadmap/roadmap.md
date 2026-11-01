@@ -1,11 +1,11 @@
 # Roadmap Excalidraw Unchained
 
-> Backlog actif. L'historique détaillé est archivé dans `_archives/`.
-> Dernière mise à jour : 2026-11-01.
+> Backlog actif. L'historique détaillé est archivé dans `_archives/`. Dernière mise à jour : 2026-11-01.
 
 ## Contexte
 
 Backlog consolidé : plans nommés d'après leur issue GitHub (voir `doc/roadmap/`).
+
 - « À faire » : travaux restants, triés par priorité.
 - « Fait » : ce qui a été livré et validé.
 
