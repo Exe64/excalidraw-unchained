@@ -150,14 +150,28 @@ export const registerAdminRoutes = (
   // new versions of the application
   // ---------------------------------------------------------------------------
 
-  api.get("/admin/update", (req, res) => {
-    res.json(updates.getStatus());
+  api.get("/update/status", requireSession, (req, res) => {
+    res.json(updates.getPublicStatus(req.user.id));
+  });
+
+  api.get("/admin/update", async (req, res) => {
+    res.json(await updates.getStatus(req.user.id));
   });
 
   /** explicit check, allowed even when the periodic checks are off */
   api.post("/admin/update/check", async (req, res) => {
     await updates.check();
-    res.json(updates.getStatus());
+    res.json(await updates.getStatus(req.user.id));
+  });
+
+  /** installs a release: the server is replaced by the updater service */
+  api.post("/admin/update", async (req, res) => {
+    try {
+      await updates.install(req.body?.version);
+    } catch (error) {
+      throw new HttpError(error.status || 500, error.message);
+    }
+    res.json(await updates.getStatus(req.user.id));
   });
 
   api.get("/admin/users", (req, res) => {

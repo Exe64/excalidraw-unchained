@@ -14,6 +14,26 @@
     margin-inline-start: auto;
   }
 
+  .unchained-update-banner {
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    z-index: var(--zIndex-popup, 10);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: max-content;
+    max-width: calc(100vw - 2rem);
+    box-sizing: border-box;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: var(--border-radius-md);
+    color: var(--color-on-surface);
+    background-color: var(--color-surface-primary-container);
+    box-shadow: var(--shadow-island);
+    transform: translateX(-50%);
+  }
+
   .unchained-menu-count {
     margin-inline-start: auto;
     min-width: 1.25rem;

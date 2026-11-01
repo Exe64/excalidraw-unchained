@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, it } from "node:test";
 
+import { listBackups } from "../src/backups.js";
 import { config } from "../src/config.js";
 import { openDatabase } from "../src/db.js";
 import { setUpdateCheckEnabled } from "../src/settings.js";
@@ -108,7 +112,7 @@ describe("update status", () => {
         fetchFn: registry(["1.1.0"]).fetchFn,
       });
       await updates.check();
-      const status = updates.getStatus();
+      const status = await updates.getStatus();
       assert.equal(status.available, true);
       assert.equal(status.latest, "1.1.0");
       assert.equal(status.checkEnabled, true);
@@ -124,8 +128,104 @@ describe("update status", () => {
       },
     });
     await updates.check();
-    assert.equal(updates.getStatus().checkError, "offline");
-    assert.equal(updates.getStatus().available, false);
+    const status = await updates.getStatus();
+    assert.equal(status.checkError, "offline");
+    assert.equal(status.available, false);
+    db.close();
+  });
+
+  describe("installing", () => {
+    /** a registry offering 1.1.0, and an updater */
+    const setup = async ({ refuse = false } = {}) => {
+      const db = openDatabase(":memory:");
+      const updaterCalls = [];
+      const { fetchFn: registryFetch } = registry(["1.1.0"]);
+      const updates = createUpdates(db, {
+        fetchFn: async (url, init) => {
+          if (!url.startsWith(config.update.updaterUrl)) {
+            return registryFetch(url, init);
+          }
+          updaterCalls.push(`${init.method} ${url}`);
+          return refuse
+            ? new Response('{"error":"nope"}', { status: 500 })
+            : json({ state: "running" });
+        },
+      });
+      await updates.check();
+      return { db, updates, updaterCalls };
+    };
+
+    const withUpdater = (test) =>
+      withVersion("1.0.0", async () => {
+        const dataDir = config.dataDir;
+        config.dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "updates-"));
+        config.update.updaterSecret = "secret";
+        try {
+          await test();
+        } finally {
+          config.update.updaterSecret = "";
+          config.dataDir = dataDir;
+        }
+      });
+
+    it("needs the updater service", async () => {
+      await withVersion("1.0.0", async () => {
+        const { db, updates } = await setup();
+        await assert.rejects(updates.install("1.1.0"), /pas activé/);
+        db.close();
+      });
+    });
+
+    it("only installs the available version", async () => {
+      await withUpdater(async () => {
+        const { db, updates, updaterCalls } = await setup();
+        await assert.rejects(updates.install("9.9.9"), /plus à installer/);
+        assert.equal(listBackups().length, 0);
+        assert.deepEqual(updaterCalls, []);
+        db.close();
+      });
+    });
+
+    it("backs up first, and tells everyone", async () => {
+      await withUpdater(async () => {
+        const { db, updates, updaterCalls } = await setup();
+        assert.equal(updates.getPublicStatus("u").installing, false);
+        await updates.install("1.1.0");
+        assert.match(listBackups()[0].name, /before-update/);
+        assert.ok(updaterCalls.at(-1).startsWith("POST"));
+        assert.equal(updates.getPublicStatus("u").installing, true);
+        await assert.rejects(updates.install("1.1.0"), /déjà en cours/);
+        db.close();
+      });
+    });
+
+    it("doesn't start if the backup fails", async () => {
+      await withUpdater(async () => {
+        const { db, updates, updaterCalls } = await setup();
+        db.close();
+        await assert.rejects(updates.install("1.1.0"), /pas démarré/);
+        assert.deepEqual(updaterCalls, []);
+        assert.equal(updates.getPublicStatus("u").installing, false);
+      });
+    });
+
+    it("reports an updater that refuses", async () => {
+      await withUpdater(async () => {
+        const { db, updates } = await setup({ refuse: true });
+        await assert.rejects(updates.install("1.1.0"), /nope/);
+        assert.equal(updates.getPublicStatus("u").installing, false);
+        db.close();
+      });
+    });
+  });
+
+  it("counts the other connected people", async () => {
+    const db = openDatabase(":memory:");
+    const updates = createUpdates(db);
+    updates.getPublicStatus("admin");
+    updates.getPublicStatus("a");
+    updates.getPublicStatus("b");
+    assert.equal((await updates.getStatus("admin")).otherUsers, 2);
     db.close();
   });
 });

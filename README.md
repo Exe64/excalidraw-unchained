@@ -89,7 +89,7 @@ Les administrateurs disposent du menu ☰ > **Administration**, qui affiche auss
 - **Double authentification** : _facultative_, _obligatoire pour les administrateurs_ ou _obligatoire pour tous_. Pour l'exiger, l'administrateur doit d'abord l'avoir activée sur son propre compte ;
 - **Intégrations web** : désactivées par défaut. Si vous les autorisez, le contenu (YouTube, Vimeo, Figma…) est chargé depuis ces services par toute personne qui ouvre le dessin. Sinon, seul le lien s'affiche ;
 - **Comptes** : créer un compte, réinitialiser un mot de passe (l'utilisateur est déconnecté partout) ou en définir un pour un compte créé par SSO, réinitialiser la double authentification (téléphone perdu), donner ou retirer les droits d'administrateur, supprimer un compte avec ses dessins. Les comptes liés au SSO et ceux qui utilisent la double authentification sont signalés. L'application garde toujours au moins un administrateur actif.
-- **Mises à jour** : affiche la version installée. La recherche de nouvelles versions est désactivée par défaut, car elle interroge `ghcr.io` ; le bouton « Vérifier maintenant » reste disponible. Une version disponible est aussi signalée dans le menu ☰ ;
+- **Mises à jour** : affiche la version installée. La recherche de nouvelles versions est désactivée par défaut, car elle interroge `ghcr.io` ; le bouton « Vérifier maintenant » reste disponible. Une version disponible est aussi signalée dans le menu ☰. Elle s'installe en un clic si le [service de mise à jour](#mettre-à-jour-depuis-lapplication) est activé, sinon l'écran indique la commande à lancer ;
 - **Sauvegardes** : la base est sauvegardée automatiquement (toutes les 24 h par défaut, les 14 dernières sont gardées) dans `/data/backups`. L'écran liste les sauvegardes et permet d'en faire une à la demande, de les télécharger, de les supprimer et de **restaurer** l'instance, à partir d'une sauvegarde de la liste ou d'un fichier envoyé. Avant de restaurer, une sauvegarde de l'état actuel est faite ; le serveur redémarre ensuite pour appliquer la restauration, puis la page se recharge.
 
 ### Personnaliser
@@ -112,6 +112,31 @@ L'application est servie sur <http://localhost:3000>. À la première ouverture,
 En production, placez le conteneur derrière un reverse proxy HTTPS (Caddy, Traefik, nginx…) qui transmet aussi les WebSockets (`/socket.io`), et définissez `TRUST_PROXY` pour que le cookie de session reçoive le flag `Secure`.
 
 La restauration d'une sauvegarde depuis l'application arrête le serveur pour qu'il recharge la base : il doit donc être relancé automatiquement (`restart: unless-stopped` dans le `docker-compose.yml`, ou l'équivalent systemd hors Docker). Pensez aussi à copier `/data/backups` hors du serveur (les sauvegardes sont dans le même volume que la base).
+
+## Mettre à jour depuis l'application
+
+Par défaut, l'application signale les nouvelles versions et indique la commande à lancer. Pour les installer depuis l'écran Administration, activez le service `updater` en ajoutant ceci au fichier `.env` :
+
+```bash
+COMPOSE_PROFILES=updater
+UPDATER_SECRET=<une valeur aléatoire, par exemple : openssl rand -hex 32>
+```
+
+Puis lancez `docker compose pull` et `docker compose up -d`.
+
+⚠️ Ce service détient le socket Docker, ce qui équivaut à un accès administrateur à la machine. Il n'a aucun port sur l'hôte, n'accepte que les requêtes portant le secret et ne sait que remplacer le conteneur de l'application par une version publiée de `UPDATE_IMAGE`. Le conteneur de l'application n'a pas accès à Docker.
+
+Une installation se déroule ainsi :
+
+1. Le serveur sauvegarde la base (`/data/backups`, sauvegarde `before-update`, jamais supprimée automatiquement). Si la sauvegarde échoue, rien ne change.
+2. Le service télécharge l'image, puis remplace le conteneur en conservant ses variables, son volume et son réseau.
+3. Si le nouveau conteneur n'est pas sain au bout de `UPDATE_HEALTH_TIMEOUT_SECONDS` (120 secondes par défaut ; Docker ne fait son premier contrôle qu'après 30 secondes, gardez donc au moins 60 secondes), le service remet le conteneur précédent et l'écran affiche la cause.
+
+La base n'est jamais restaurée automatiquement. Si une version a déjà modifié la base avant d'échouer, le conteneur précédent peut ne plus fonctionner avec elle : restaurez alors la sauvegarde `before-update`, ce qui efface ce qui a été écrit depuis.
+
+Pendant l'installation, les personnes connectées voient un bandeau, puis une invitation à recharger la page. Leurs modifications en attente sont envoyées dès le retour du serveur, tant que l'onglet reste ouvert.
+
+Le service lui-même ne se met pas à jour depuis l'application : `docker compose pull` et `docker compose up -d` s'en chargent. Une instance dont l'image date d'avant les versions numérotées doit aussi passer par ces commandes une première fois.
 
 ## Gestion des utilisateurs
 
@@ -165,6 +190,7 @@ Le flux utilisé est le flux « code d'autorisation » avec PKCE ; l'ID token es
 | `AI_BASE_URL` | `https://api.openai.com/v1` pour `openai` | URL de l'API, ex. `https://api.mistral.ai/v1`, `http://ollama:11434/v1` |
 | `AI_EFFORT` | `medium` | Claude uniquement : `low`, `medium`, `high`, `xhigh`, `max` |
 | `UPDATE_IMAGE` | `ghcr.io/exe64/excalidraw-unchained` | Image publique dont les tags indiquent les versions disponibles |
+| `UPDATER_SECRET` / `UPDATER_URL` | – / `http://updater:3006` | Secret partagé avec le service de mise à jour, qui active l'installation depuis l'application, et adresse de ce service |
 | `BACKUP_INTERVAL_HOURS` | `24` | Intervalle des sauvegardes automatiques (`0` = désactivées) |
 | `BACKUP_KEEP` | `14` | Nombre de sauvegardes automatiques conservées (les manuelles ne sont jamais supprimées automatiquement) |
 | `AI_REQUESTS_PER_DAY` | `200` | Quota de requêtes IA par utilisateur et par jour (`0` = illimité) |

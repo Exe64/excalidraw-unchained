@@ -305,6 +305,21 @@ const en = {
     "This image isn't a published version: no update can be offered.",
   "admin.updateCheckFailed": "The check failed: {{error}}",
   "admin.updateCommand": "To install it, run this on the server:",
+  "admin.updateInstall": "Install",
+  "admin.updateConfirm":
+    "Install version {{version}}? The database is backed up first. The app is unavailable for everyone during the restart. Other people connected right now: {{count}}.",
+  "admin.updateInstalling": "Installing version {{version}}…",
+  "admin.updateRestarting": "The server is restarting…",
+  "admin.updateSucceeded": "Version {{version}} is installed.",
+  "admin.updateFailed": "The update to {{version}} failed: {{error}}.",
+  "admin.updateRolledBack":
+    "The previous version is back in service. If the problem persists, restore the before-update backup, which erases what was written since.",
+  "admin.updateNotRolledBack":
+    "The previous version may not be running: check the containers on the server.",
+  "update.installing":
+    "An update is being installed. The app will be briefly unavailable; your changes are sent once it's back.",
+  "update.installed": "A new version is installed.",
+  "update.reload": "Reload",
   "admin.tfaAdmins": "Required for administrators",
   "admin.tfaAll": "Required for everyone",
   "admin.tfaRequiredHint":
@@ -615,6 +630,21 @@ const fr: Partial<Record<Key, string>> = {
     "Cette image n'est pas une version publiée : aucune mise à jour ne peut être proposée.",
   "admin.updateCheckFailed": "La vérification a échoué : {{error}}",
   "admin.updateCommand": "Pour l'installer, lancez ceci sur le serveur :",
+  "admin.updateInstall": "Installer",
+  "admin.updateConfirm":
+    "Installer la version {{version}} ? La base est d'abord sauvegardée. L'application est indisponible pour tout le monde pendant le redémarrage. Autres personnes connectées en ce moment : {{count}}.",
+  "admin.updateInstalling": "Installation de la version {{version}}…",
+  "admin.updateRestarting": "Le serveur redémarre…",
+  "admin.updateSucceeded": "La version {{version}} est installée.",
+  "admin.updateFailed": "La mise à jour vers {{version}} a échoué : {{error}}.",
+  "admin.updateRolledBack":
+    "La version précédente est de nouveau en service. Si le problème persiste, restaurez la sauvegarde before-update, ce qui efface ce qui a été écrit depuis.",
+  "admin.updateNotRolledBack":
+    "La version précédente ne fonctionne peut-être pas : vérifiez les conteneurs sur le serveur.",
+  "update.installing":
+    "Une mise à jour est en cours d'installation. L'application sera brièvement indisponible ; vos modifications seront envoyées à son retour.",
+  "update.installed": "Une nouvelle version est installée.",
+  "update.reload": "Recharger",
   "admin.tfaAdmins": "Obligatoire pour les administrateurs",
   "admin.tfaAll": "Obligatoire pour tous",
   "admin.tfaRequiredHint":

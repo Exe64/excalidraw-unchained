@@ -114,6 +114,7 @@ import {
   AccountDialog,
   accountDialogOpenAtom,
 } from "./components/AccountDialog";
+import { UpdateBanner } from "./components/UpdateBanner";
 import {
   VersionHistoryDialog,
   versionHistoryDialogOpenAtom,
@@ -1221,6 +1222,7 @@ const ExcalidrawWrapper = () => {
         </OverwriteConfirmDialog>
         <ApiAccessDialog />
         <AdminDialog />
+        <UpdateBanner />
         <AccountDialog />
         <VersionHistoryDialog
           getFiles={getEditorFiles}

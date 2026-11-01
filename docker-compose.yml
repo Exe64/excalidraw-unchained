@@ -37,8 +37,31 @@ services:
       # automatic backups of the database, in /data/backups (0 = disabled)
       - BACKUP_INTERVAL_HOURS=${BACKUP_INTERVAL_HOURS:-24}
       - BACKUP_KEEP=${BACKUP_KEEP:-14}
+      # installing updates from the app, see the `updater` service below
+      - UPDATE_IMAGE=${UPDATE_IMAGE:-}
+      - UPDATER_SECRET=${UPDATER_SECRET:-}
     volumes:
       - excalidraw-data:/data
+
+  # optional: installs updates from the app (COMPOSE_PROFILES=updater and a
+  # random UPDATER_SECRET). It holds the Docker socket, which gives full control
+  # of the host: it has no port of its own and only accepts to update the app.
+  updater:
+    image: ghcr.io/exe64/excalidraw-unchained:latest
+    profiles:
+      - updater
+    container_name: excalidraw-updater
+    command: ["node", "--disable-warning=ExperimentalWarning", "src/updater.js"]
+    restart: unless-stopped
+    healthcheck:
+      disable: true
+    environment:
+      - UPDATER_SECRET=${UPDATER_SECRET:-}
+      - UPDATE_IMAGE=${UPDATE_IMAGE:-}
+      - APP_CONTAINER=excalidraw
+      - UPDATE_HEALTH_TIMEOUT_SECONDS=${UPDATE_HEALTH_TIMEOUT_SECONDS:-120}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
 volumes:
   excalidraw-data:

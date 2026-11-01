@@ -30,6 +30,10 @@ export const config = {
   update: {
     /** image of the releases: a public image, in a registry */
     image: process.env.UPDATE_IMAGE || "ghcr.io/exe64/excalidraw-unchained",
+    /** the service that installs updates (see docker-compose.yml), used when
+     * UPDATER_SECRET is set */
+    updaterUrl: process.env.UPDATER_URL || "http://updater:3006",
+    updaterSecret: process.env.UPDATER_SECRET || "",
   },
   port: Number(process.env.PORT || 3005),
   host: process.env.HOST || "0.0.0.0",
