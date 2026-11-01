@@ -7,6 +7,7 @@ status: active
 date: 2026-11-01
 description: >
   Permettre à un admin de mettre à jour une instance depuis l'application, avec sauvegarde préalable et retour à l'image précédente en cas d'échec.
+
 priority: medium
 complexity: L
 intent: null
@@ -110,7 +111,7 @@ Un admin voit « Update x.y available », clique, et l'instance passe à cette v
 ### Résultats joués et vérifiés
 
 | Date | Test | Attendu | Observé | Verdict |
-| --- | --- | --- | --- | --- |
+| ---- | ---- | ------- | ------- | ------- |
 
 ## Journal de session
 
