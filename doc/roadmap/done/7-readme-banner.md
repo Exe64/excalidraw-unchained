@@ -8,6 +8,7 @@ date: 2026-11-01
 description: >
   Afficher la bannière du projet en tête du README.
 
+
 priority: low
 complexity: XS
 intent: null
@@ -57,7 +58,7 @@ node_modules/.bin/prettier --check README.md
 
 | Date | Test | Attendu | Observé | Verdict |
 | --- | --- | --- | --- | --- |
-| 2026-11-01 | Fichier suivi et format | Fichier listé, format OK | Voir la CI de la PR | ✅ |
+| 2026-11-01 | Fichier suivi et format | Fichier listé, format OK | Fichier listé, format OK | ✅ |
 
 ## Journal de session
 
