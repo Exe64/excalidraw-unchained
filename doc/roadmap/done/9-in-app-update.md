@@ -2,8 +2,8 @@
 plan:
   id: "9"
   name: 9-in-app-update.md
-  link: https://github.com/Exe64/excalidraw-unchained/blob/main/doc/roadmap/9-in-app-update.md
-status: active
+  link: https://github.com/Exe64/excalidraw-unchained/blob/main/doc/roadmap/done/9-in-app-update.md
+status: done
 date: 2026-11-01
 description: >
   Permettre à un admin de mettre à jour une instance depuis l'application, avec sauvegarde préalable et retour à l'image précédente en cas d'échec.
@@ -61,8 +61,8 @@ Un admin voit « Update x.y available », clique, et l'instance passe à cette v
 - [x] Étape 5 — Lot 3 : créer le service de mise à jour avec `pull`, remplacement du conteneur, contrôle de santé et retour à l'image précédente, derrière un profil Compose (L · reasoning → Opus)
 - [x] Étape 6 — Lot 3 : relier le bouton au service avec sauvegarde obligatoire, confirmation indiquant le nombre de personnes connectées et résultat conservé après le redémarrage (M · reasoning → Opus)
 - [x] Étape 7 — Lot 3 : afficher le bandeau de coupure et l'invitation à recharger, puis vérifier le sort des modifications non enregistrées (M · standard → Sonnet)
-- [x] 🧪 Tests — Rédiger et exécuter la procédure de test (local ; contrôle GHCR réel en attente, voir Validation)
-- [ ] ✅ Validation — Vérifier les résultats des tests et clôturer
+- [x] 🧪 Tests — Rédiger et exécuter la procédure de test
+- [x] ✅ Validation — Vérifier les résultats des tests et clôturer
 
 ## Décisions techniques
 
@@ -147,9 +147,11 @@ echo "=== Read The Real Registry Anonymously ==="
 - Aucune requête tierce n'est émise quand l'option est désactivée.
 - Aucune modification enregistrée n'est perdue.
 
-### Contrôle restant, avant clôture
+### Contrôle sur GHCR
 
-Passer de `v1.0.0` à la version suivante sur les images réelles de GHCR, depuis le bouton. Les deux tags sont publics et demandent l'accord de l'utilisateur.
+Passage de `v1.0.0` à `v1.0.1` sur les images réelles, depuis le bouton, sur une instance isolée démarrée avec le vrai `docker-compose.yml`. Les deux tags portent le même code : ce contrôle porte sur le passage d'une version à l'autre.
+
+Limites : le scénario à deux personnes (bandeau, modification pendant la coupure) et le retour à l'image précédente n'ont été joués que sur le registre local. Les scénarios restent hors du dépôt.
 
 ### Résultats joués et vérifiés
 
@@ -167,6 +169,13 @@ Passer de `v1.0.0` à la version suivante sur les images réelles de GHCR, depui
 | 2026-11-01 | Navigateur : coupure | Modification pendant la coupure enregistrée | 2 éléments enregistrés | PASS |
 | 2026-11-01 | Navigateur : échec | Cause affichée, version précédente de retour | Conforme | PASS |
 | 2026-11-01 | Vérificateur indépendant | Verdict sur les fichiers de résultats | PASS | PASS |
+| 2026-11-02 | Publication de `v1.0.1` | Tag GHCR `1.0.1`, `:latest` déplacé | Publié, dernière version lue : 1.0.1 | PASS |
+| 2026-11-02 | GHCR : détection | « Update 1.0.1 available » après « Check now » | Conforme | PASS |
+| 2026-11-02 | GHCR : installation | 1.0.1 en service, session et dessin conservés, sauvegarde préalable | Conforme, `before-update` créée | PASS |
+| 2026-11-02 | GHCR : conteneur remplacé | Volume, port, redémarrage et labels Compose conservés | Conservés, conteneur sain | PASS |
+| 2026-11-02 | GHCR : `docker compose pull` et `up -d` ensuite | Retour sur `:latest`, en 1.0.1 | Conforme, session conservée, aucune mise à jour proposée | PASS |
+| 2026-11-02 | Navigateur : requêtes | Aucun tiers | Aucun | PASS |
+| 2026-11-02 | Position du bandeau | En bas au centre, sans masquer la barre d'outils | Confirmé sur capture | PASS |
 
 ## Journal de session
 
@@ -175,4 +184,9 @@ Passer de `v1.0.0` à la version suivante sur les images réelles de GHCR, depui
 - ✅ Fait : cadrage, plan, étapes 1 à 7, tests locaux de bout en bout, une PR par lot.
 - 🔄 En cours : revue et merge des trois PR par l'utilisateur.
 - 📋 Prochain : poser `v1.0.0` juste après le merge du lot 1, puis une version suivante pour le contrôle réel sur GHCR, avec l'accord de l'utilisateur.
+- 🚧 Blocages : aucun.
+
+### Session 2026-11-02
+
+- ✅ Fait : PR #10, #11 et #12 fusionnées, `v1.0.0` et `v1.0.1` publiées, installation validée sur les images réelles de GHCR, plan clôturé.
 - 🚧 Blocages : aucun.
